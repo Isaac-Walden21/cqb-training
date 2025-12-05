@@ -730,7 +730,8 @@
             playbackComplete: false,  // True after playback finishes
             
             // Look point placement state
-            pendingLookPoint: null  // {entity, distance, position} - waiting for direction click
+            pendingLookPoint: null,  // {entity, distance, position} - waiting for direction click
+            pathBlocked: false  // True when path hits a wall
         };
 
         // Entity types
@@ -1079,6 +1080,91 @@
             return Math.hypot(point.x - projX, point.y - projY);
         }
 
+        // Line segment intersection check
+        function lineIntersection(p1, p2, p3, p4) {
+            const denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
+            if (Math.abs(denom) < 0.0001) return null; // Parallel
+            
+            const ua = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) / denom;
+            const ub = ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x)) / denom;
+            
+            if (ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1) {
+                return {
+                    x: p1.x + ua * (p2.x - p1.x),
+                    y: p1.y + ua * (p2.y - p1.y),
+                    t: ua
+                };
+            }
+            return null;
+        }
+
+        // Check if a line segment crosses any wall
+        function getWallIntersection(x1, y1, x2, y2) {
+            let closestHit = null;
+            let closestDist = Infinity;
+            
+            for (const entity of state.entities) {
+                if (entity.type === ENTITY_TYPES.WALL || entity.type === ENTITY_TYPES.DOOR_CLOSED) {
+                    const hit = lineIntersection(
+                        { x: x1, y: y1 }, { x: x2, y: y2 },
+                        { x: entity.x1, y: entity.y1 }, { x: entity.x2, y: entity.y2 }
+                    );
+                    if (hit) {
+                        const dist = Math.hypot(hit.x - x1, hit.y - y1);
+                        if (dist < closestDist && dist > 1) { // Avoid hitting walls at start point
+                            closestDist = dist;
+                            closestHit = hit;
+                        }
+                    }
+                }
+            }
+            return closestHit;
+        }
+
+        // Check if path segment is valid (doesn't cross walls)
+        function isPathSegmentValid(x1, y1, x2, y2) {
+            return getWallIntersection(x1, y1, x2, y2) === null;
+        }
+
+        // Get all walls for FOV calculation
+        function getWalls() {
+            const walls = [];
+            for (const entity of state.entities) {
+                if (entity.type === ENTITY_TYPES.WALL || entity.type === ENTITY_TYPES.DOOR_CLOSED) {
+                    walls.push({
+                        x1: entity.x1, y1: entity.y1,
+                        x2: entity.x2, y2: entity.y2
+                    });
+                }
+            }
+            return walls;
+        }
+
+        // Cast ray and find closest wall intersection
+        function castRay(ox, oy, angle, maxDist) {
+            const endX = ox + Math.cos(angle) * maxDist;
+            const endY = oy + Math.sin(angle) * maxDist;
+            
+            let closestDist = maxDist;
+            
+            for (const entity of state.entities) {
+                if (entity.type === ENTITY_TYPES.WALL || entity.type === ENTITY_TYPES.DOOR_CLOSED) {
+                    const hit = lineIntersection(
+                        { x: ox, y: oy }, { x: endX, y: endY },
+                        { x: entity.x1, y: entity.y1 }, { x: entity.x2, y: entity.y2 }
+                    );
+                    if (hit) {
+                        const dist = Math.hypot(hit.x - ox, hit.y - oy);
+                        if (dist < closestDist) {
+                            closestDist = dist;
+                        }
+                    }
+                }
+            }
+            
+            return closestDist;
+        }
+
         // Smooth path using Catmull-Rom spline interpolation
         function smoothPath(points, segments = 5) {
             if (points.length < 3) return points;
@@ -1164,37 +1250,31 @@
 
         // ========== ANIMATION ==========
         function startPlayback() {
-            // Don't start if already playing or if playback is complete
+            // Don't start if already playing
             if (state.playing) return;
             
             // Check if there are any paths to animate
             const hasMovement = state.entities.some(e => e.path && e.path.length > 1);
             if (!hasMovement) return;
             
-            // If playback was complete, need to rewind first
-            if (state.playbackComplete) return;
-            
             state.playing = true;
             document.getElementById('playBtn').textContent = '⏸ Pause';
             document.getElementById('playBtn').classList.add('playing');
             
-            // Only reset playbackTime if starting fresh (not resuming from pause)
-            const isResuming = state.playbackTime > 0;
-            if (!isResuming) {
-                state.playbackTime = 0;
-            }
+            // Check if we're resuming from pause (playbackTime > 0 and entities have currentX set)
+            const isResuming = state.playbackTime > 0 && state.entities.some(e => e.currentX !== undefined && e.currentX !== e.x);
             
-            // Initialize positions for entities with paths (only if not already set)
-            state.entities.forEach(e => {
-                if (e.path && e.path.length > 0) {
-                    if (e.currentX === undefined) e.currentX = e.x;
-                    if (e.currentY === undefined) e.currentY = e.y;
-                    // Set initial direction from first look keyframe or base direction
-                    if (e.currentDirection === undefined) {
+            if (!isResuming) {
+                // Starting fresh
+                state.playbackTime = 0;
+                state.entities.forEach(e => {
+                    if (e.path && e.path.length > 0) {
+                        e.currentX = e.x;
+                        e.currentY = e.y;
                         e.currentDirection = getDirectionAtDistance(e, 0);
                     }
-                }
-            });
+                });
+            }
             
             lastFrameTime = performance.now();
             animate();
@@ -1211,7 +1291,22 @@
             
             if (completed) {
                 state.playbackComplete = true;
-                // Entities stay at their final positions (currentX/Y persist)
+                // Commit final positions - operators stay where they ended
+                state.entities.forEach(e => {
+                    if (e.path && e.path.length > 1) {
+                        // Update base position to final position
+                        if (e.currentX !== undefined) e.x = e.currentX;
+                        if (e.currentY !== undefined) e.y = e.currentY;
+                        if (e.currentDirection !== undefined) e.direction = e.currentDirection;
+                        // Clear the path so new ones can be drawn
+                        e.path = [];
+                        e.lookKeyframes = [];
+                    }
+                });
+                // Reset playback state so Play button works for next paths
+                state.playbackComplete = false;
+                state.playbackTime = 0;
+                saveState();
             }
         }
 
@@ -1220,7 +1315,7 @@
             state.playbackTime = 0;
             state.playbackComplete = false;
             
-            // Reset all entities to their starting positions
+            // Reset all entities to their base (committed) positions
             state.entities.forEach(e => {
                 e.currentX = e.x;
                 e.currentY = e.y;
@@ -1801,27 +1896,50 @@
 
         function drawFOVCone(x, y, direction, fovAngleDeg, fovRange, color) {
             const halfAngle = (fovAngleDeg * Math.PI / 180) / 2;
+            const numRays = Math.max(20, Math.floor(fovAngleDeg / 2)); // More rays for wider FOV
             
             ctx.save();
+            
+            // Build the FOV polygon by casting rays
+            const points = [{ x, y }];
+            
+            for (let i = 0; i <= numRays; i++) {
+                const angle = direction - halfAngle + (i / numRays) * (halfAngle * 2);
+                const dist = castRay(x, y, angle, fovRange);
+                points.push({
+                    x: x + Math.cos(angle) * dist,
+                    y: y + Math.sin(angle) * dist
+                });
+            }
+            
+            // Draw filled FOV area
             ctx.globalAlpha = 0.15;
             ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.arc(x, y, fovRange, direction - halfAngle, direction + halfAngle);
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
             ctx.closePath();
             ctx.fill();
             
+            // Draw edge lines
             ctx.globalAlpha = 0.4;
             ctx.strokeStyle = color;
             ctx.lineWidth = 1;
+            
+            // Left edge
             ctx.beginPath();
             ctx.moveTo(x, y);
-            ctx.lineTo(x + Math.cos(direction - halfAngle) * fovRange, y + Math.sin(direction - halfAngle) * fovRange);
+            ctx.lineTo(points[1].x, points[1].y);
             ctx.stroke();
+            
+            // Right edge
             ctx.beginPath();
             ctx.moveTo(x, y);
-            ctx.lineTo(x + Math.cos(direction + halfAngle) * fovRange, y + Math.sin(direction + halfAngle) * fovRange);
+            ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
             ctx.stroke();
+            
             ctx.restore();
         }
 
@@ -1911,6 +2029,7 @@
                         // If this is already the selected entity, start drawing from here
                         if (state.selected && state.selected.item === clickedForPath.item) {
                             state.drawing = true;
+                            state.pathBlocked = false;
                             state.currentPath = [worldPos];
                             break;
                         }
@@ -1923,6 +2042,7 @@
                     if (state.selected && state.selected.type === 'entity' && 
                         [ENTITY_TYPES.OPERATOR, ENTITY_TYPES.THREAT, ENTITY_TYPES.CIVILIAN].includes(state.selected.item.type)) {
                         state.drawing = true;
+                        state.pathBlocked = false;
                         state.currentPath = [worldPos];
                     }
                     break;
@@ -2026,8 +2146,25 @@
 
             // Drawing
             if (state.drawing) {
-                if (state.tool === 'pen' || state.tool === 'path') {
+                if (state.tool === 'pen') {
                     state.currentPath.push(worldPos);
+                } else if (state.tool === 'path') {
+                    // Check for wall collision before adding point
+                    const lastPoint = state.currentPath.length > 0 
+                        ? state.currentPath[state.currentPath.length - 1]
+                        : { x: state.selected.item.x, y: state.selected.item.y };
+                    
+                    const wallHit = getWallIntersection(lastPoint.x, lastPoint.y, worldPos.x, worldPos.y);
+                    if (wallHit) {
+                        // Stop at wall (slightly before it)
+                        const stopX = lastPoint.x + (wallHit.x - lastPoint.x) * 0.95;
+                        const stopY = lastPoint.y + (wallHit.y - lastPoint.y) * 0.95;
+                        state.currentPath.push({ x: stopX, y: stopY });
+                        // End drawing - can't go through wall
+                        state.pathBlocked = true;
+                    } else if (!state.pathBlocked) {
+                        state.currentPath.push(worldPos);
+                    }
                 } else if (['line', 'arrow', 'rect'].includes(state.tool)) {
                     state.currentPath = [worldPos];
                 } else if (['wall', 'door-closed', 'door-open'].includes(state.tool)) {
@@ -2150,6 +2287,7 @@
                 state.drawing = false;
                 state.drawStart = null;
                 state.currentPath = [];
+                state.pathBlocked = false;
             }
 
             if (state.selected && state.dragOffset) {
@@ -2243,6 +2381,7 @@
                 state.drawing = false;
                 state.currentPath = [];
                 state.pendingLookPoint = null;
+                state.pathBlocked = false;
                 document.getElementById('textInput').style.display = 'none';
                 draw();
             }
@@ -2619,6 +2758,7 @@
                         // If this is already the selected entity, start drawing from here
                         if (state.selected && state.selected.item === clickedForPathT.item) {
                             state.drawing = true;
+                            state.pathBlocked = false;
                             state.currentPath = [worldPos];
                             break;
                         }
@@ -2631,6 +2771,7 @@
                     if (state.selected && state.selected.type === 'entity' && 
                         [ENTITY_TYPES.OPERATOR, ENTITY_TYPES.THREAT, ENTITY_TYPES.CIVILIAN].includes(state.selected.item.type)) {
                         state.drawing = true;
+                        state.pathBlocked = false;
                         state.currentPath = [worldPos];
                     }
                     break;
@@ -2748,8 +2889,24 @@
             }
 
             if (state.drawing) {
-                if (state.tool === 'pen' || state.tool === 'path') {
+                if (state.tool === 'pen') {
                     state.currentPath.push(worldPos);
+                } else if (state.tool === 'path') {
+                    // Check for wall collision before adding point
+                    const lastPoint = state.currentPath.length > 0 
+                        ? state.currentPath[state.currentPath.length - 1]
+                        : { x: state.selected.item.x, y: state.selected.item.y };
+                    
+                    const wallHit = getWallIntersection(lastPoint.x, lastPoint.y, worldPos.x, worldPos.y);
+                    if (wallHit) {
+                        // Stop at wall (slightly before it)
+                        const stopX = lastPoint.x + (wallHit.x - lastPoint.x) * 0.95;
+                        const stopY = lastPoint.y + (wallHit.y - lastPoint.y) * 0.95;
+                        state.currentPath.push({ x: stopX, y: stopY });
+                        state.pathBlocked = true;
+                    } else if (!state.pathBlocked) {
+                        state.currentPath.push(worldPos);
+                    }
                 } else if (['line', 'arrow', 'rect'].includes(state.tool)) {
                     state.currentPath = [worldPos];
                 } else if (['wall', 'door-closed', 'door-open'].includes(state.tool)) {
@@ -2866,6 +3023,7 @@
                 state.drawing = false;
                 state.drawStart = null;
                 state.currentPath = [];
+                state.pathBlocked = false;
             }
 
             if (state.selected && state.dragOffset) {
