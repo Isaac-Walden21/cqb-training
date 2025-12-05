@@ -1,0 +1,2880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CQB Tactical Whiteboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #e8e8e8;
+            color: #333;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            touch-action: none;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 200px;
+            background: #f5f5f5;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border-right: 2px solid #ccc;
+            overflow-y: auto;
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .sidebar h1 {
+            font-size: 15px;
+            color: #333;
+            margin-bottom: 8px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .tool-section {
+            background: #fff;
+            border-radius: 6px;
+            padding: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .tool-section h3 {
+            font-size: 10px;
+            color: #666;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+        }
+
+        .tool-btn {
+            padding: 8px 4px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            color: #333;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.15s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            min-height: 44px;
+        }
+
+        .tool-btn span {
+            font-size: 9px;
+            opacity: 0.7;
+        }
+
+        .tool-btn:hover {
+            background: #e3f2fd;
+            border-color: #2196F3;
+        }
+
+        .tool-btn.active {
+            background: #2196F3;
+            color: #fff;
+            border-color: #1976D2;
+        }
+
+        /* Color picker */
+        .color-row {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+
+        .color-swatch {
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid #ccc;
+            transition: all 0.15s;
+        }
+
+        .color-swatch:hover, .color-swatch.active {
+            border-color: #333;
+            transform: scale(1.1);
+        }
+
+        /* Slider controls */
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .slider-row label {
+            font-size: 10px;
+            color: #666;
+            min-width: 50px;
+        }
+
+        .slider-row input[type="range"] {
+            flex: 1;
+            cursor: pointer;
+            height: 6px;
+        }
+
+        .slider-row .val {
+            font-size: 10px;
+            color: #666;
+            min-width: 30px;
+            text-align: right;
+        }
+
+        /* Main canvas area */
+        .main {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .toolbar {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 6px 10px;
+            border-radius: 8px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            z-index: 50;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            border: 1px solid #ddd;
+            flex-wrap: wrap;
+            max-width: calc(100% - 20px);
+        }
+
+        .toolbar button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            color: #333;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.15s;
+            min-height: 36px;
+        }
+
+        .toolbar button:hover {
+            background: #e3f2fd;
+            border-color: #2196F3;
+        }
+
+        .toolbar button.active {
+            background: #2196F3;
+            color: #fff;
+        }
+
+        .toolbar button.play-btn {
+            background: #4CAF50;
+            color: #fff;
+            border-color: #43A047;
+            font-weight: 600;
+        }
+
+        .toolbar button.play-btn:hover {
+            background: #43A047;
+        }
+
+        .toolbar button.play-btn.playing {
+            background: #FF9800;
+            border-color: #F57C00;
+        }
+
+        .toolbar .divider {
+            width: 1px;
+            height: 20px;
+            background: #ddd;
+        }
+
+        .toolbar .zoom-display {
+            font-size: 11px;
+            color: #666;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        /* Cursor styles */
+        .cursor-grab { cursor: grab !important; }
+        .cursor-grabbing { cursor: grabbing !important; }
+        .cursor-crosshair { cursor: crosshair !important; }
+        .cursor-move { cursor: move !important; }
+        .cursor-text { cursor: text !important; }
+
+        /* Text input overlay */
+        .text-input-overlay {
+            position: absolute;
+            display: none;
+            z-index: 200;
+        }
+
+        .text-input-overlay input {
+            background: #fff;
+            border: 2px solid #2196F3;
+            color: #333;
+            padding: 10px 14px;
+            font-size: 16px;
+            font-family: inherit;
+            border-radius: 4px;
+            outline: none;
+            min-width: 200px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        /* Instructions */
+        .help-panel {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #666;
+            z-index: 50;
+            border: 1px solid #ddd;
+            max-width: calc(100% - 20px);
+            text-align: center;
+        }
+
+        .help-panel kbd {
+            background: #eee;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin: 0 2px;
+            border: 1px solid #ccc;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            width: 400px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-content h2 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .modal-content textarea {
+            width: 100%;
+            height: 200px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            color: #333;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 11px;
+            resize: vertical;
+        }
+
+        .modal-content .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .modal-content button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            min-height: 44px;
+        }
+
+        .modal-content .btn-primary {
+            background: #2196F3;
+            color: #fff;
+        }
+
+        .modal-content .btn-secondary {
+            background: #eee;
+            color: #333;
+        }
+
+        /* Playback speed */
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            color: #666;
+        }
+
+        .speed-control select {
+            padding: 4px 6px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 12px;
+            background: #fff;
+            min-height: 32px;
+        }
+
+        /* Mobile sidebar toggle */
+        .sidebar-toggle {
+            display: none;
+            position: absolute;
+            top: 60px;
+            left: 10px;
+            z-index: 110;
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            background: #fff;
+            border: 1px solid #ddd;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Tablet and Mobile Responsive */
+        @media (max-width: 900px) {
+            .toolbar {
+                top: 8px;
+                padding: 4px 8px;
+                gap: 4px;
+            }
+            
+            .toolbar button {
+                padding: 6px 8px;
+                font-size: 11px;
+            }
+            
+            .toolbar .divider {
+                display: none;
+            }
+            
+            .help-panel {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                left: -220px;
+                top: 0;
+                height: 100%;
+                transition: left 0.3s ease;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+            }
+            
+            .sidebar.open {
+                left: 0;
+            }
+            
+            .sidebar-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .sidebar.open + .main .sidebar-toggle {
+                left: 210px;
+            }
+            
+            .toolbar {
+                top: 8px;
+                left: 60px;
+                transform: none;
+                max-width: calc(100% - 80px);
+            }
+            
+            .toolbar .secondary-controls {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .toolbar button {
+                padding: 6px;
+                font-size: 10px;
+            }
+            
+            .toolbar .zoom-display {
+                display: none;
+            }
+            
+            .speed-control label {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h1>📋 Tactical Whiteboard</h1>
+
+        <div class="tool-section">
+            <h3>Navigation</h3>
+            <div class="tool-grid">
+                <button class="tool-btn active" data-tool="select" title="Select & Move">
+                    <span style="font-size:16px">↖</span>
+                    <span>Select</span>
+                </button>
+                <button class="tool-btn" data-tool="pan" title="Pan Canvas">
+                    <span style="font-size:16px">✋</span>
+                    <span>Pan</span>
+                </button>
+                <button class="tool-btn" data-tool="erase" title="Erase">
+                    <span style="font-size:16px">✕</span>
+                    <span>Erase</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="tool-section">
+            <h3>Draw</h3>
+            <div class="tool-grid">
+                <button class="tool-btn" data-tool="pen" title="Marker">
+                    <span style="font-size:16px">✏</span>
+                    <span>Marker</span>
+                </button>
+                <button class="tool-btn" data-tool="line" title="Straight Line">
+                    <span style="font-size:16px">╱</span>
+                    <span>Line</span>
+                </button>
+                <button class="tool-btn" data-tool="arrow" title="Arrow">
+                    <span style="font-size:16px">→</span>
+                    <span>Arrow</span>
+                </button>
+                <button class="tool-btn" data-tool="rect" title="Rectangle">
+                    <span style="font-size:16px">▢</span>
+                    <span>Rect</span>
+                </button>
+                <button class="tool-btn" data-tool="text" title="Text Label">
+                    <span style="font-size:16px">T</span>
+                    <span>Text</span>
+                </button>
+            </div>
+            <div class="color-row" id="drawColors">
+                <div class="color-swatch" style="background: #333" data-color="#333333"></div>
+                <div class="color-swatch active" style="background: #d32f2f" data-color="#d32f2f"></div>
+                <div class="color-swatch" style="background: #1976D2" data-color="#1976D2"></div>
+                <div class="color-swatch" style="background: #388E3C" data-color="#388E3C"></div>
+                <div class="color-swatch" style="background: #F57C00" data-color="#F57C00"></div>
+                <div class="color-swatch" style="background: #7B1FA2" data-color="#7B1FA2"></div>
+            </div>
+            <div class="slider-row">
+                <label>Size</label>
+                <input type="range" id="strokeSize" min="2" max="12" value="3">
+                <span class="val" id="strokeSizeVal">3</span>
+            </div>
+        </div>
+
+        <div class="tool-section">
+            <h3>Structure</h3>
+            <div class="tool-grid">
+                <button class="tool-btn" data-tool="wall" title="Wall">
+                    <span style="font-size:16px">▬</span>
+                    <span>Wall</span>
+                </button>
+                <button class="tool-btn" data-tool="door-closed" title="Closed Door">
+                    <span style="font-size:14px">▯</span>
+                    <span>Door</span>
+                </button>
+                <button class="tool-btn" data-tool="door-open" title="Open Door">
+                    <span style="font-size:16px">⊏</span>
+                    <span>Open</span>
+                </button>
+            </div>
+            <div class="slider-row" style="margin-top: 8px;">
+                <label>Swing</label>
+                <select id="doorSwing" style="flex:1; padding: 2px 4px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">
+                    <option value="in-left">In Left</option>
+                    <option value="in-right">In Right</option>
+                    <option value="out-left">Out Left</option>
+                    <option value="out-right">Out Right</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="tool-section">
+            <h3>Characters</h3>
+            <div class="tool-grid">
+                <button class="tool-btn" data-tool="operator" title="Operator (O)">
+                    <span style="font-size:18px; font-weight:bold">O</span>
+                    <span>Operator</span>
+                </button>
+                <button class="tool-btn" data-tool="threat" title="Threat (X)">
+                    <span style="font-size:18px; font-weight:bold; color:#d32f2f">X</span>
+                    <span>Threat</span>
+                </button>
+                <button class="tool-btn" data-tool="civilian" title="Civilian (C)">
+                    <span style="font-size:18px; font-weight:bold; color:#1976D2">C</span>
+                    <span>Civilian</span>
+                </button>
+            </div>
+            <div class="color-row" id="operatorColors">
+                <div class="color-swatch active" style="background: #388E3C" data-color="#388E3C"></div>
+                <div class="color-swatch" style="background: #1976D2" data-color="#1976D2"></div>
+                <div class="color-swatch" style="background: #F57C00" data-color="#F57C00"></div>
+                <div class="color-swatch" style="background: #7B1FA2" data-color="#7B1FA2"></div>
+            </div>
+            <div class="slider-row">
+                <label>FOV°</label>
+                <input type="range" id="fovAngle" min="30" max="180" value="90">
+                <span class="val" id="fovAngleVal">90</span>
+            </div>
+            <div class="slider-row">
+                <label>Range</label>
+                <input type="range" id="fovRange" min="50" max="300" value="120">
+                <span class="val" id="fovRangeVal">120</span>
+            </div>
+            <div style="margin-top: 6px; font-size: 10px; color: #666;">
+                <kbd style="background:#eee; padding:2px 5px; border-radius:3px; border:1px solid #ccc;">R</kbd> rotate selected · 
+                <kbd style="background:#eee; padding:2px 5px; border-radius:3px; border:1px solid #ccc;">Shift+R</kbd> reverse
+            </div>
+            <div class="tool-grid" style="grid-template-columns: 1fr 1fr; margin-top: 6px;">
+                <button class="tool-btn" id="rotateLeftBtn" title="Rotate Left">
+                    <span style="font-size:16px">↺</span>
+                    <span>Rotate L</span>
+                </button>
+                <button class="tool-btn" id="rotateRightBtn" title="Rotate Right">
+                    <span style="font-size:16px">↻</span>
+                    <span>Rotate R</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="tool-section">
+            <h3>Movement Path</h3>
+            <div class="tool-grid" style="grid-template-columns: 1fr 1fr;">
+                <button class="tool-btn" data-tool="path" title="Draw movement path for selected character">
+                    <span style="font-size:16px">⤴</span>
+                    <span>Draw Path</span>
+                </button>
+                <button class="tool-btn" id="clearPathBtn" title="Clear path for selected character">
+                    <span style="font-size:16px">⌫</span>
+                    <span>Clear Path</span>
+                </button>
+            </div>
+            <div class="tool-grid" style="grid-template-columns: 1fr 1fr; margin-top: 4px;">
+                <button class="tool-btn" data-tool="lookpoint" title="Add look direction point on path">
+                    <span style="font-size:16px">👁</span>
+                    <span>Look Point</span>
+                </button>
+                <button class="tool-btn" id="clearLooksBtn" title="Clear all look points">
+                    <span style="font-size:16px">⌫</span>
+                    <span>Clear Looks</span>
+                </button>
+            </div>
+            <div style="margin-top: 6px; font-size: 10px; color: #666;">
+                Click path to add look point, then click target location
+            </div>
+        </div>
+    </div>
+
+    <div class="main">
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        <canvas id="canvas"></canvas>
+
+        <div class="toolbar">
+            <button id="playBtn" class="play-btn">▶ Play</button>
+            <button id="rewindBtn">⏮ Rewind</button>
+            <div class="speed-control">
+                <label>Speed:</label>
+                <select id="speedSelect">
+                    <option value="0.5">0.5x</option>
+                    <option value="1" selected>1x</option>
+                    <option value="2">2x</option>
+                    <option value="3">3x</option>
+                </select>
+            </div>
+            <div class="divider"></div>
+            <button id="undoBtn">Undo</button>
+            <button id="redoBtn">Redo</button>
+            <div class="divider"></div>
+            <button id="zoomOutBtn">−</button>
+            <span class="zoom-display" id="zoomDisplay">100%</span>
+            <button id="zoomInBtn">+</button>
+            <button id="zoomFitBtn">Fit</button>
+            <div class="divider"></div>
+            <button id="gridToggle" class="active">Grid</button>
+            <button id="fovToggle" class="active">FOV</button>
+            <div class="divider"></div>
+            <button id="newBtn">New</button>
+            <button id="saveBtn">Save</button>
+            <button id="loadBtn">Load</button>
+        </div>
+
+        <div class="help-panel">
+            <kbd>Space</kbd>+drag to pan · <kbd>Scroll</kbd> to zoom · <kbd>Del</kbd> delete · <kbd>R</kbd> rotate selected · Select character → <b>Draw Path</b>
+        </div>
+
+        <div class="text-input-overlay" id="textInput">
+            <input type="text" id="textInputField" placeholder="Type label...">
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Save Scenario</h2>
+            <textarea id="modalData"></textarea>
+            <div class="btn-row">
+                <button class="btn-secondary" id="modalCancel">Cancel</button>
+                <button class="btn-primary" id="modalConfirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== STATE ==========
+        const state = {
+            tool: 'select',
+            drawColor: '#d32f2f',
+            operatorColor: '#388E3C',
+            strokeSize: 3,
+            showGrid: true,
+            showFOV: true,
+            gridSize: 30,
+            fovAngle: 90,
+            fovRange: 120,
+            doorSwing: 'in-left',
+
+            // Canvas transform
+            zoom: 1,
+            panX: 0,
+            panY: 0,
+
+            // Entities and drawings
+            entities: [],
+            drawings: [],
+
+            // History for undo/redo
+            history: [],
+            historyIndex: -1,
+            maxHistory: 50,
+
+            // Interaction state
+            selected: null,
+            drawing: false,
+            panning: false,
+            drawStart: null,
+            currentPath: [],
+            dragOffset: null,
+            spaceHeld: false,
+
+            // Animation state
+            playing: false,
+            playbackTime: 0,
+            playbackSpeed: 1,
+            animationFrame: null,
+            playbackComplete: false,  // True after playback finishes
+            
+            // Look point placement state
+            pendingLookPoint: null  // {entity, distance, position} - waiting for direction click
+        };
+
+        // Entity types
+        const ENTITY_TYPES = {
+            WALL: 'wall',
+            DOOR_CLOSED: 'door-closed',
+            DOOR_OPEN: 'door-open',
+            OPERATOR: 'operator',
+            THREAT: 'threat',
+            CIVILIAN: 'civilian'
+        };
+
+        const DRAWING_TYPES = {
+            PEN: 'pen',
+            LINE: 'line',
+            ARROW: 'arrow',
+            RECT: 'rect',
+            TEXT: 'text'
+        };
+
+        // ========== CANVAS SETUP ==========
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const container = document.querySelector('.main');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            draw();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // ========== COORDINATE TRANSFORMS ==========
+        function screenToWorld(sx, sy) {
+            return {
+                x: (sx - state.panX) / state.zoom,
+                y: (sy - state.panY) / state.zoom
+            };
+        }
+
+        function worldToScreen(wx, wy) {
+            return {
+                x: wx * state.zoom + state.panX,
+                y: wy * state.zoom + state.panY
+            };
+        }
+
+        function snapToGrid(val) {
+            return Math.round(val / state.gridSize) * state.gridSize;
+        }
+
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+
+        // ========== HISTORY ==========
+        function saveState() {
+            const snapshot = JSON.stringify({ 
+                entities: state.entities.map(e => ({...e, currentX: undefined, currentY: undefined, currentDirection: undefined})), 
+                drawings: state.drawings 
+            });
+            state.history = state.history.slice(0, state.historyIndex + 1);
+            state.history.push(snapshot);
+            if (state.history.length > state.maxHistory) state.history.shift();
+            state.historyIndex = state.history.length - 1;
+        }
+
+        function undo() {
+            if (state.historyIndex > 0) {
+                state.historyIndex--;
+                const snapshot = JSON.parse(state.history[state.historyIndex]);
+                state.entities = snapshot.entities;
+                state.drawings = snapshot.drawings;
+                state.selected = null;
+                draw();
+            }
+        }
+
+        function redo() {
+            if (state.historyIndex < state.history.length - 1) {
+                state.historyIndex++;
+                const snapshot = JSON.parse(state.history[state.historyIndex]);
+                state.entities = snapshot.entities;
+                state.drawings = snapshot.drawings;
+                state.selected = null;
+                draw();
+            }
+        }
+
+        // ========== ENTITY HELPERS ==========
+        function findEntityAt(wx, wy) {
+            // Check drawings first (top layer)
+            for (let i = state.drawings.length - 1; i >= 0; i--) {
+                if (isPointInDrawing(wx, wy, state.drawings[i])) {
+                    return { type: 'drawing', item: state.drawings[i], index: i };
+                }
+            }
+            // Then entities
+            for (let i = state.entities.length - 1; i >= 0; i--) {
+                if (isPointInEntity(wx, wy, state.entities[i])) {
+                    return { type: 'entity', item: state.entities[i], index: i };
+                }
+            }
+            return null;
+        }
+
+        function isPointInDrawing(x, y, drawing) {
+            const threshold = 10 / state.zoom;
+            switch (drawing.type) {
+                case DRAWING_TYPES.PEN:
+                    for (const pt of drawing.points) {
+                        if (Math.hypot(x - pt.x, y - pt.y) < threshold + drawing.size) return true;
+                    }
+                    return false;
+                case DRAWING_TYPES.LINE:
+                case DRAWING_TYPES.ARROW:
+                    return distToSegment(x, y, drawing.x1, drawing.y1, drawing.x2, drawing.y2) < threshold;
+                case DRAWING_TYPES.RECT:
+                    const minX = Math.min(drawing.x1, drawing.x2);
+                    const maxX = Math.max(drawing.x1, drawing.x2);
+                    const minY = Math.min(drawing.y1, drawing.y2);
+                    const maxY = Math.max(drawing.y1, drawing.y2);
+                    return x >= minX - threshold && x <= maxX + threshold &&
+                           y >= minY - threshold && y <= maxY + threshold;
+                case DRAWING_TYPES.TEXT:
+                    return x >= drawing.x - 5 && x <= drawing.x + drawing.width + 5 &&
+                           y >= drawing.y - drawing.size - 5 && y <= drawing.y + 5;
+                default:
+                    return false;
+            }
+        }
+
+        function isPointInEntity(x, y, entity) {
+            const threshold = 10;
+            switch (entity.type) {
+                case ENTITY_TYPES.WALL:
+                case ENTITY_TYPES.DOOR_CLOSED:
+                case ENTITY_TYPES.DOOR_OPEN:
+                    return distToSegment(x, y, entity.x1, entity.y1, entity.x2, entity.y2) < threshold;
+                case ENTITY_TYPES.OPERATOR:
+                case ENTITY_TYPES.THREAT:
+                case ENTITY_TYPES.CIVILIAN:
+                    const ex = entity.currentX !== undefined ? entity.currentX : entity.x;
+                    const ey = entity.currentY !== undefined ? entity.currentY : entity.y;
+                    return Math.hypot(x - ex, y - ey) <= 15;
+                default:
+                    return false;
+            }
+        }
+
+        function distToSegment(px, py, x1, y1, x2, y2) {
+            const A = px - x1, B = py - y1, C = x2 - x1, D = y2 - y1;
+            const dot = A * C + B * D;
+            const lenSq = C * C + D * D;
+            let param = lenSq !== 0 ? dot / lenSq : -1;
+            let xx, yy;
+            if (param < 0) { xx = x1; yy = y1; }
+            else if (param > 1) { xx = x2; yy = y2; }
+            else { xx = x1 + param * C; yy = y1 + param * D; }
+            return Math.hypot(px - xx, py - yy);
+        }
+
+        // ========== PATH HELPERS ==========
+        function getPathLength(path) {
+            if (!path || path.length < 2) return 0;
+            let length = 0;
+            for (let i = 1; i < path.length; i++) {
+                length += Math.hypot(path[i].x - path[i-1].x, path[i].y - path[i-1].y);
+            }
+            return length;
+        }
+
+        function getPositionAlongPath(path, distance) {
+            if (!path || path.length === 0) return null;
+            if (path.length === 1) return { x: path[0].x, y: path[0].y };
+            
+            let traveled = 0;
+            for (let i = 1; i < path.length; i++) {
+                const segLen = Math.hypot(path[i].x - path[i-1].x, path[i].y - path[i-1].y);
+                if (traveled + segLen >= distance) {
+                    const t = (distance - traveled) / segLen;
+                    return {
+                        x: path[i-1].x + t * (path[i].x - path[i-1].x),
+                        y: path[i-1].y + t * (path[i].y - path[i-1].y)
+                    };
+                }
+                traveled += segLen;
+            }
+            return { x: path[path.length-1].x, y: path[path.length-1].y };
+        }
+
+        function getDistanceAlongPath(path, point) {
+            // Find the closest point on the path and return the distance to it
+            if (!path || path.length < 2) return 0;
+            
+            let minDist = Infinity;
+            let bestDistance = 0;
+            let traveled = 0;
+            
+            for (let i = 1; i < path.length; i++) {
+                const segLen = Math.hypot(path[i].x - path[i-1].x, path[i].y - path[i-1].y);
+                
+                // Find closest point on this segment
+                const A = point.x - path[i-1].x;
+                const B = point.y - path[i-1].y;
+                const C = path[i].x - path[i-1].x;
+                const D = path[i].y - path[i-1].y;
+                const dot = A * C + B * D;
+                const lenSq = C * C + D * D;
+                let t = lenSq !== 0 ? Math.max(0, Math.min(1, dot / lenSq)) : 0;
+                
+                const closestX = path[i-1].x + t * C;
+                const closestY = path[i-1].y + t * D;
+                const dist = Math.hypot(point.x - closestX, point.y - closestY);
+                
+                if (dist < minDist) {
+                    minDist = dist;
+                    bestDistance = traveled + t * segLen;
+                }
+                
+                traveled += segLen;
+            }
+            
+            return bestDistance;
+        }
+
+        function getDirectionAtDistance(entity, distance) {
+            // Get interpolated direction based on look keyframes
+            const keyframes = entity.lookKeyframes || [];
+            
+            if (keyframes.length === 0) {
+                // No keyframes, use entity's base direction or path direction
+                return entity.direction || 0;
+            }
+            
+            // Sort keyframes by distance
+            const sorted = [...keyframes].sort((a, b) => a.distance - b.distance);
+            
+            // Find surrounding keyframes
+            let before = null;
+            let after = null;
+            
+            for (let i = 0; i < sorted.length; i++) {
+                if (sorted[i].distance <= distance) {
+                    before = sorted[i];
+                } else {
+                    after = sorted[i];
+                    break;
+                }
+            }
+            
+            // If only one keyframe or before first keyframe
+            if (!before && after) return after.direction;
+            if (before && !after) return before.direction;
+            if (!before && !after) return entity.direction || 0;
+            
+            // Interpolate between keyframes
+            const t = (distance - before.distance) / (after.distance - before.distance);
+            
+            // Interpolate angles properly (shortest path)
+            let diff = after.direction - before.direction;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            
+            return before.direction + t * diff;
+        }
+
+        function getNearestPathPoint(path, point) {
+            // Returns {position: {x, y}, distance: number} for closest point on path
+            if (!path || path.length < 2) return null;
+            
+            let minDist = Infinity;
+            let bestPos = null;
+            let bestDistance = 0;
+            let traveled = 0;
+            
+            for (let i = 1; i < path.length; i++) {
+                const segLen = Math.hypot(path[i].x - path[i-1].x, path[i].y - path[i-1].y);
+                
+                const A = point.x - path[i-1].x;
+                const B = point.y - path[i-1].y;
+                const C = path[i].x - path[i-1].x;
+                const D = path[i].y - path[i-1].y;
+                const dot = A * C + B * D;
+                const lenSq = C * C + D * D;
+                let t = lenSq !== 0 ? Math.max(0, Math.min(1, dot / lenSq)) : 0;
+                
+                const closestX = path[i-1].x + t * C;
+                const closestY = path[i-1].y + t * D;
+                const dist = Math.hypot(point.x - closestX, point.y - closestY);
+                
+                if (dist < minDist) {
+                    minDist = dist;
+                    bestPos = { x: closestX, y: closestY };
+                    bestDistance = traveled + t * segLen;
+                }
+                
+                traveled += segLen;
+            }
+            
+            return { position: bestPos, distance: bestDistance };
+        }
+
+        // Simplify path using Ramer-Douglas-Peucker algorithm
+        function simplifyPath(points, tolerance = 3) {
+            if (points.length <= 2) return points;
+            
+            // Find the point with max distance from line between first and last
+            let maxDist = 0;
+            let maxIndex = 0;
+            const first = points[0];
+            const last = points[points.length - 1];
+            
+            for (let i = 1; i < points.length - 1; i++) {
+                const dist = perpendicularDistance(points[i], first, last);
+                if (dist > maxDist) {
+                    maxDist = dist;
+                    maxIndex = i;
+                }
+            }
+            
+            // If max distance is greater than tolerance, recursively simplify
+            if (maxDist > tolerance) {
+                const left = simplifyPath(points.slice(0, maxIndex + 1), tolerance);
+                const right = simplifyPath(points.slice(maxIndex), tolerance);
+                return left.slice(0, -1).concat(right);
+            } else {
+                return [first, last];
+            }
+        }
+
+        function perpendicularDistance(point, lineStart, lineEnd) {
+            const dx = lineEnd.x - lineStart.x;
+            const dy = lineEnd.y - lineStart.y;
+            const lenSq = dx * dx + dy * dy;
+            
+            if (lenSq === 0) return Math.hypot(point.x - lineStart.x, point.y - lineStart.y);
+            
+            const t = Math.max(0, Math.min(1, ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / lenSq));
+            const projX = lineStart.x + t * dx;
+            const projY = lineStart.y + t * dy;
+            
+            return Math.hypot(point.x - projX, point.y - projY);
+        }
+
+        // Smooth path using Catmull-Rom spline interpolation
+        function smoothPath(points, segments = 5) {
+            if (points.length < 3) return points;
+            
+            const result = [points[0]];
+            
+            for (let i = 0; i < points.length - 1; i++) {
+                const p0 = points[Math.max(0, i - 1)];
+                const p1 = points[i];
+                const p2 = points[Math.min(points.length - 1, i + 1)];
+                const p3 = points[Math.min(points.length - 1, i + 2)];
+                
+                for (let t = 1; t <= segments; t++) {
+                    const t1 = t / segments;
+                    const t2 = t1 * t1;
+                    const t3 = t2 * t1;
+                    
+                    const x = 0.5 * ((2 * p1.x) +
+                        (-p0.x + p2.x) * t1 +
+                        (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+                        (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3);
+                    
+                    const y = 0.5 * ((2 * p1.y) +
+                        (-p0.y + p2.y) * t1 +
+                        (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+                        (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3);
+                    
+                    result.push({ x, y });
+                }
+            }
+            
+            return result;
+        }
+
+        // Erase a section of a wall, splitting it into two pieces
+        function eraseWallSection(wall, erasePoint, eraseRadius = 15) {
+            const { x1, y1, x2, y2 } = wall;
+            const wallLen = Math.hypot(x2 - x1, y2 - y1);
+            if (wallLen < eraseRadius * 2) return []; // Wall too short, remove entirely
+            
+            // Find closest point on wall to erase point
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const t = Math.max(0, Math.min(1, ((erasePoint.x - x1) * dx + (erasePoint.y - y1) * dy) / (dx * dx + dy * dy)));
+            
+            // Calculate the erase range along the wall (as t values)
+            const eraseT = eraseRadius / wallLen;
+            const tStart = Math.max(0, t - eraseT);
+            const tEnd = Math.min(1, t + eraseT);
+            
+            const newWalls = [];
+            
+            // Create first segment (before erased section)
+            if (tStart > 0.05) {
+                const newX2 = x1 + tStart * dx;
+                const newY2 = y1 + tStart * dy;
+                if (Math.hypot(newX2 - x1, newY2 - y1) > 10) {
+                    newWalls.push({
+                        ...wall,
+                        id: Date.now(),
+                        x2: newX2,
+                        y2: newY2
+                    });
+                }
+            }
+            
+            // Create second segment (after erased section)
+            if (tEnd < 0.95) {
+                const newX1 = x1 + tEnd * dx;
+                const newY1 = y1 + tEnd * dy;
+                if (Math.hypot(x2 - newX1, y2 - newY1) > 10) {
+                    newWalls.push({
+                        ...wall,
+                        id: Date.now() + 1,
+                        x1: newX1,
+                        y1: newY1
+                    });
+                }
+            }
+            
+            return newWalls;
+        }
+
+        // ========== ANIMATION ==========
+        function startPlayback() {
+            // Don't start if already playing or if playback is complete
+            if (state.playing) return;
+            
+            // Check if there are any paths to animate
+            const hasMovement = state.entities.some(e => e.path && e.path.length > 1);
+            if (!hasMovement) return;
+            
+            // If playback was complete, need to rewind first
+            if (state.playbackComplete) return;
+            
+            state.playing = true;
+            document.getElementById('playBtn').textContent = '⏸ Pause';
+            document.getElementById('playBtn').classList.add('playing');
+            
+            // Only reset playbackTime if starting fresh (not resuming from pause)
+            const isResuming = state.playbackTime > 0;
+            if (!isResuming) {
+                state.playbackTime = 0;
+            }
+            
+            // Initialize positions for entities with paths (only if not already set)
+            state.entities.forEach(e => {
+                if (e.path && e.path.length > 0) {
+                    if (e.currentX === undefined) e.currentX = e.x;
+                    if (e.currentY === undefined) e.currentY = e.y;
+                    // Set initial direction from first look keyframe or base direction
+                    if (e.currentDirection === undefined) {
+                        e.currentDirection = getDirectionAtDistance(e, 0);
+                    }
+                }
+            });
+            
+            lastFrameTime = performance.now();
+            animate();
+        }
+
+        function stopPlayback(completed = false) {
+            state.playing = false;
+            document.getElementById('playBtn').textContent = '▶ Play';
+            document.getElementById('playBtn').classList.remove('playing');
+            
+            if (state.animationFrame) {
+                cancelAnimationFrame(state.animationFrame);
+            }
+            
+            if (completed) {
+                state.playbackComplete = true;
+                // Entities stay at their final positions (currentX/Y persist)
+            }
+        }
+
+        function rewindPlayback() {
+            stopPlayback(false);
+            state.playbackTime = 0;
+            state.playbackComplete = false;
+            
+            // Reset all entities to their starting positions
+            state.entities.forEach(e => {
+                e.currentX = e.x;
+                e.currentY = e.y;
+                e.currentDirection = e.direction;
+            });
+            draw();
+        }
+
+        let lastFrameTime = 0;
+        const MOVEMENT_SPEED = 100; // pixels per second
+
+        function animate() {
+            if (!state.playing) return;
+
+            const now = performance.now();
+            const delta = (now - lastFrameTime) / 1000; // seconds
+            lastFrameTime = now;
+
+            state.playbackTime += delta * state.playbackSpeed;
+            const distance = state.playbackTime * MOVEMENT_SPEED;
+
+            let allDone = true;
+            state.entities.forEach(e => {
+                if (e.path && e.path.length > 1) {
+                    const pathLen = getPathLength(e.path);
+                    if (distance < pathLen) {
+                        allDone = false;
+                        const pos = getPositionAlongPath(e.path, distance);
+                        e.currentX = pos.x;
+                        e.currentY = pos.y;
+                        // Update direction based on look keyframes
+                        e.currentDirection = getDirectionAtDistance(e, distance);
+                    } else {
+                        e.currentX = e.path[e.path.length - 1].x;
+                        e.currentY = e.path[e.path.length - 1].y;
+                        // Final direction
+                        e.currentDirection = getDirectionAtDistance(e, pathLen);
+                    }
+                }
+            });
+
+            draw();
+
+            if (allDone) {
+                stopPlayback(true);  // Mark as completed
+            } else {
+                state.animationFrame = requestAnimationFrame(animate);
+            }
+        }
+
+        // ========== DRAWING ==========
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Whiteboard background
+            ctx.fillStyle = '#fafafa';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(state.panX, state.panY);
+            ctx.scale(state.zoom, state.zoom);
+
+            // Grid
+            if (state.showGrid) drawGrid();
+
+            // Drawings (annotations layer)
+            state.drawings.forEach(d => drawDrawing(d, state.selected?.item === d));
+
+            // Entities - walls first, then characters
+            state.entities.filter(e => [ENTITY_TYPES.WALL, ENTITY_TYPES.DOOR_CLOSED, ENTITY_TYPES.DOOR_OPEN].includes(e.type))
+                .forEach(e => drawEntity(e, state.selected?.item === e));
+
+            // Draw movement paths
+            state.entities.filter(e => e.path && e.path.length > 1)
+                .forEach(e => drawMovementPath(e, state.selected?.item === e));
+
+            // Characters on top
+            state.entities.filter(e => [ENTITY_TYPES.OPERATOR, ENTITY_TYPES.THREAT, ENTITY_TYPES.CIVILIAN].includes(e.type))
+                .forEach(e => drawEntity(e, state.selected?.item === e));
+
+            // Current drawing preview
+            if (state.drawing && state.currentPath.length > 0) {
+                drawCurrentPath();
+            }
+
+            ctx.restore();
+        }
+
+        function drawGrid() {
+            const bounds = getVisibleBounds();
+            const startX = Math.floor(bounds.minX / state.gridSize) * state.gridSize;
+            const startY = Math.floor(bounds.minY / state.gridSize) * state.gridSize;
+
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1 / state.zoom;
+
+            for (let x = startX; x <= bounds.maxX; x += state.gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, bounds.minY);
+                ctx.lineTo(x, bounds.maxY);
+                ctx.stroke();
+            }
+            for (let y = startY; y <= bounds.maxY; y += state.gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(bounds.minX, y);
+                ctx.lineTo(bounds.maxX, y);
+                ctx.stroke();
+            }
+        }
+
+        function getVisibleBounds() {
+            const tl = screenToWorld(0, 0);
+            const br = screenToWorld(canvas.width, canvas.height);
+            return { minX: tl.x, minY: tl.y, maxX: br.x, maxY: br.y };
+        }
+
+        function drawMovementPath(entity, isSelected) {
+            const path = entity.path;
+            if (!path || path.length < 2) return;
+
+            ctx.save();
+            ctx.strokeStyle = entity.color || '#388E3C';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([6, 3]);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            ctx.beginPath();
+            ctx.moveTo(path[0].x, path[0].y);
+            for (let i = 1; i < path.length; i++) {
+                ctx.lineTo(path[i].x, path[i].y);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw arrow at end
+            if (path.length >= 2) {
+                const last = path[path.length - 1];
+                const prev = path[path.length - 2];
+                const angle = Math.atan2(last.y - prev.y, last.x - prev.x);
+                const headLen = 10;
+
+                ctx.fillStyle = entity.color || '#388E3C';
+                ctx.beginPath();
+                ctx.moveTo(last.x, last.y);
+                ctx.lineTo(last.x - headLen * Math.cos(angle - 0.4), last.y - headLen * Math.sin(angle - 0.4));
+                ctx.lineTo(last.x - headLen * Math.cos(angle + 0.4), last.y - headLen * Math.sin(angle + 0.4));
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Draw waypoint dots (only every few points to reduce clutter)
+            const step = Math.max(1, Math.floor(path.length / 8));
+            for (let i = step; i < path.length - 1; i += step) {
+                ctx.fillStyle = '#fff';
+                ctx.strokeStyle = entity.color || '#388E3C';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(path[i].x, path[i].y, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // Draw look keyframes
+            const keyframes = entity.lookKeyframes || [];
+            keyframes.forEach(kf => {
+                const pos = getPositionAlongPath(path, kf.distance);
+                if (pos) {
+                    // Draw eye icon at position
+                    ctx.fillStyle = '#fff';
+                    ctx.strokeStyle = '#FF5722';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    // Draw direction line from keyframe
+                    const lineLen = 20;
+                    ctx.strokeStyle = '#FF5722';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(pos.x, pos.y);
+                    ctx.lineTo(pos.x + Math.cos(kf.direction) * lineLen, pos.y + Math.sin(kf.direction) * lineLen);
+                    ctx.stroke();
+                    
+                    // Arrow head
+                    const endX = pos.x + Math.cos(kf.direction) * lineLen;
+                    const endY = pos.y + Math.sin(kf.direction) * lineLen;
+                    ctx.fillStyle = '#FF5722';
+                    ctx.beginPath();
+                    ctx.moveTo(endX, endY);
+                    ctx.lineTo(endX - 6 * Math.cos(kf.direction - 0.4), endY - 6 * Math.sin(kf.direction - 0.4));
+                    ctx.lineTo(endX - 6 * Math.cos(kf.direction + 0.4), endY - 6 * Math.sin(kf.direction + 0.4));
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            });
+
+            // Draw pending look point if exists
+            if (state.pendingLookPoint && state.pendingLookPoint.entity === entity) {
+                const pos = state.pendingLookPoint.position;
+                ctx.fillStyle = '#FFEB3B';
+                ctx.strokeStyle = '#FF5722';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                // Pulsing effect hint
+                ctx.strokeStyle = 'rgba(255, 87, 34, 0.5)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 12, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            ctx.restore();
+        }
+
+        function drawDrawing(d, isSelected) {
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            switch (d.type) {
+                case DRAWING_TYPES.PEN:
+                    if (d.points.length < 2) return;
+                    ctx.strokeStyle = isSelected ? '#000' : d.color;
+                    ctx.lineWidth = d.size;
+                    ctx.beginPath();
+                    ctx.moveTo(d.points[0].x, d.points[0].y);
+                    d.points.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+                    ctx.stroke();
+                    break;
+
+                case DRAWING_TYPES.LINE:
+                    ctx.strokeStyle = isSelected ? '#000' : d.color;
+                    ctx.lineWidth = d.size;
+                    ctx.beginPath();
+                    ctx.moveTo(d.x1, d.y1);
+                    ctx.lineTo(d.x2, d.y2);
+                    ctx.stroke();
+                    break;
+
+                case DRAWING_TYPES.ARROW:
+                    ctx.strokeStyle = isSelected ? '#000' : d.color;
+                    ctx.fillStyle = isSelected ? '#000' : d.color;
+                    ctx.lineWidth = d.size;
+                    ctx.beginPath();
+                    ctx.moveTo(d.x1, d.y1);
+                    ctx.lineTo(d.x2, d.y2);
+                    ctx.stroke();
+                    const angle = Math.atan2(d.y2 - d.y1, d.x2 - d.x1);
+                    const headLen = 15;
+                    ctx.beginPath();
+                    ctx.moveTo(d.x2, d.y2);
+                    ctx.lineTo(d.x2 - headLen * Math.cos(angle - 0.4), d.y2 - headLen * Math.sin(angle - 0.4));
+                    ctx.lineTo(d.x2 - headLen * Math.cos(angle + 0.4), d.y2 - headLen * Math.sin(angle + 0.4));
+                    ctx.closePath();
+                    ctx.fill();
+                    break;
+
+                case DRAWING_TYPES.RECT:
+                    ctx.strokeStyle = isSelected ? '#000' : d.color;
+                    ctx.lineWidth = d.size;
+                    const x = Math.min(d.x1, d.x2), y = Math.min(d.y1, d.y2);
+                    const w = Math.abs(d.x2 - d.x1), h = Math.abs(d.y2 - d.y1);
+                    ctx.strokeRect(x, y, w, h);
+                    break;
+
+                case DRAWING_TYPES.TEXT:
+                    ctx.fillStyle = isSelected ? '#000' : d.color;
+                    ctx.font = `bold ${d.size * 5}px sans-serif`;
+                    ctx.fillText(d.text, d.x, d.y);
+                    break;
+            }
+        }
+
+        function drawCurrentPath() {
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            if (state.tool === 'pen') {
+                ctx.strokeStyle = state.drawColor;
+                ctx.lineWidth = state.strokeSize;
+                ctx.beginPath();
+                ctx.moveTo(state.currentPath[0].x, state.currentPath[0].y);
+                state.currentPath.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+                ctx.stroke();
+            } else if (state.tool === 'path' && state.selected) {
+                // Drawing movement path
+                ctx.strokeStyle = state.selected.item.color || '#388E3C';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([6, 3]);
+                ctx.beginPath();
+                const startX = state.selected.item.x;
+                const startY = state.selected.item.y;
+                ctx.moveTo(startX, startY);
+                state.currentPath.forEach(p => ctx.lineTo(p.x, p.y));
+                ctx.stroke();
+                ctx.setLineDash([]);
+            } else if (state.drawStart && state.currentPath.length > 0) {
+                const end = state.currentPath[state.currentPath.length - 1];
+                
+                // Wall preview - show as actual wall style
+                if (state.tool === 'wall') {
+                    ctx.strokeStyle = '#444';
+                    ctx.lineWidth = 6;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(state.drawStart.x, state.drawStart.y);
+                    ctx.lineTo(end.x, end.y);
+                    ctx.stroke();
+                    
+                    // Show length indicator
+                    const len = Math.hypot(end.x - state.drawStart.x, end.y - state.drawStart.y);
+                    const midX = (state.drawStart.x + end.x) / 2;
+                    const midY = (state.drawStart.y + end.y) / 2;
+                    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                    ctx.font = '11px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(Math.round(len) + 'px', midX, midY - 10);
+                    ctx.textAlign = 'left';
+                } else if (state.tool === 'door-closed' || state.tool === 'door-open') {
+                    // Door preview
+                    const previewDoor = {
+                        x1: state.drawStart.x, y1: state.drawStart.y,
+                        x2: end.x, y2: end.y,
+                        swing: state.doorSwing
+                    };
+                    drawDoor(previewDoor, false, state.tool === 'door-open');
+                } else {
+                    ctx.strokeStyle = state.drawColor;
+                    ctx.lineWidth = state.strokeSize;
+
+                    if (state.tool === 'line' || state.tool === 'arrow') {
+                        ctx.beginPath();
+                        ctx.moveTo(state.drawStart.x, state.drawStart.y);
+                        ctx.lineTo(end.x, end.y);
+                        ctx.stroke();
+                        if (state.tool === 'arrow') {
+                            const angle = Math.atan2(end.y - state.drawStart.y, end.x - state.drawStart.x);
+                            ctx.fillStyle = state.drawColor;
+                            ctx.beginPath();
+                            ctx.moveTo(end.x, end.y);
+                            ctx.lineTo(end.x - 15 * Math.cos(angle - 0.4), end.y - 15 * Math.sin(angle - 0.4));
+                            ctx.lineTo(end.x - 15 * Math.cos(angle + 0.4), end.y - 15 * Math.sin(angle + 0.4));
+                            ctx.closePath();
+                            ctx.fill();
+                        }
+                    } else if (state.tool === 'rect') {
+                        const x = Math.min(state.drawStart.x, end.x);
+                        const y = Math.min(state.drawStart.y, end.y);
+                        ctx.strokeRect(x, y, Math.abs(end.x - state.drawStart.x), Math.abs(end.y - state.drawStart.y));
+                    }
+                }
+            }
+        }
+
+        function drawEntity(entity, isSelected) {
+            switch (entity.type) {
+                case ENTITY_TYPES.WALL:
+                    ctx.strokeStyle = isSelected ? '#000' : '#444';
+                    ctx.lineWidth = 6;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(entity.x1, entity.y1);
+                    ctx.lineTo(entity.x2, entity.y2);
+                    ctx.stroke();
+                    break;
+
+                case ENTITY_TYPES.DOOR_CLOSED:
+                    drawDoor(entity, isSelected, false);
+                    break;
+
+                case ENTITY_TYPES.DOOR_OPEN:
+                    drawDoor(entity, isSelected, true);
+                    break;
+
+                case ENTITY_TYPES.OPERATOR:
+                    drawCharacter(entity, 'O', entity.color || '#388E3C', isSelected);
+                    break;
+
+                case ENTITY_TYPES.THREAT:
+                    drawCharacter(entity, 'X', '#d32f2f', isSelected);
+                    break;
+
+                case ENTITY_TYPES.CIVILIAN:
+                    drawCharacter(entity, 'C', '#1976D2', isSelected);
+                    break;
+            }
+        }
+
+        function drawDoor(entity, isSelected, isOpen) {
+            const { x1, y1, x2, y2, swing = 'in-left' } = entity;
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            const len = Math.hypot(x2 - x1, y2 - y1);
+            const perpAngle = angle + Math.PI / 2;
+            
+            // Determine hinge and knob positions based on swing
+            const hingeOnStart = swing.includes('left');
+            const swingOut = swing.includes('out');
+            
+            const hingeX = hingeOnStart ? x1 : x2;
+            const hingeY = hingeOnStart ? y1 : y2;
+            const knobX = hingeOnStart ? x2 : x1;
+            const knobY = hingeOnStart ? y2 : y1;
+            
+            // Knob offset from end (about 1/4 from the knob side)
+            const knobOffsetX = hingeOnStart ? x1 + (x2 - x1) * 0.75 : x1 + (x2 - x1) * 0.25;
+            const knobOffsetY = hingeOnStart ? y1 + (y2 - y1) * 0.75 : y1 + (y2 - y1) * 0.25;
+
+            if (isOpen) {
+                // Draw door frame (dashed line where door would be)
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // Draw swing arc
+                const swingDir = swingOut ? (hingeOnStart ? 1 : -1) : (hingeOnStart ? -1 : 1);
+                const arcStart = angle;
+                const arcEnd = angle + swingDir * Math.PI / 2;
+                
+                ctx.strokeStyle = 'rgba(34, 139, 34, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(hingeX, hingeY, len, Math.min(arcStart, arcEnd), Math.max(arcStart, arcEnd));
+                ctx.stroke();
+                
+                // Draw open door position
+                const openAngle = angle + swingDir * Math.PI / 2;
+                const openEndX = hingeX + Math.cos(openAngle) * len;
+                const openEndY = hingeY + Math.sin(openAngle) * len;
+                
+                ctx.strokeStyle = isSelected ? '#000' : '#228B22';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(hingeX, hingeY);
+                ctx.lineTo(openEndX, openEndY);
+                ctx.stroke();
+                
+                // Hinges on open door
+                ctx.fillStyle = '#666';
+                ctx.beginPath();
+                ctx.arc(hingeX, hingeY, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+            } else {
+                // Draw closed door
+                ctx.strokeStyle = isSelected ? '#000' : '#8B4513';
+                ctx.lineWidth = 5;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+                
+                // Door knob
+                ctx.fillStyle = '#DAA520';
+                ctx.beginPath();
+                ctx.arc(knobOffsetX, knobOffsetY, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#B8860B';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                // Hinges (2-3 small rectangles on hinge side)
+                ctx.fillStyle = '#666';
+                const numHinges = 2;
+                for (let i = 0; i < numHinges; i++) {
+                    const t = (i + 1) / (numHinges + 1);
+                    const hx = hingeOnStart ? x1 + (x2 - x1) * t * 0.3 : x2 - (x2 - x1) * t * 0.3;
+                    const hy = hingeOnStart ? y1 + (y2 - y1) * t * 0.3 : y2 - (y2 - y1) * t * 0.3;
+                    ctx.beginPath();
+                    ctx.arc(hx, hy, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Swing direction indicator (small arc)
+                const swingDir = swingOut ? (hingeOnStart ? 1 : -1) : (hingeOnStart ? -1 : 1);
+                const arcStart = angle;
+                const arcEnd = angle + swingDir * Math.PI / 4;
+                
+                ctx.strokeStyle = 'rgba(139, 69, 19, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.arc(hingeX, hingeY, len * 0.4, Math.min(arcStart, arcEnd), Math.max(arcStart, arcEnd));
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // Arrow at end of arc to show direction
+                const arrowAngle = arcEnd;
+                const arrowX = hingeX + Math.cos(arrowAngle) * len * 0.4;
+                const arrowY = hingeY + Math.sin(arrowAngle) * len * 0.4;
+                ctx.fillStyle = 'rgba(139, 69, 19, 0.5)';
+                ctx.beginPath();
+                const arrowDir = swingDir > 0 ? arrowAngle + Math.PI/2 : arrowAngle - Math.PI/2;
+                ctx.moveTo(arrowX, arrowY);
+                ctx.lineTo(arrowX - 6 * Math.cos(arrowDir - 0.5), arrowY - 6 * Math.sin(arrowDir - 0.5));
+                ctx.lineTo(arrowX - 6 * Math.cos(arrowDir + 0.5), arrowY - 6 * Math.sin(arrowDir + 0.5));
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+
+        function drawCharacter(entity, letter, color, isSelected) {
+            const x = entity.currentX !== undefined ? entity.currentX : entity.x;
+            const y = entity.currentY !== undefined ? entity.currentY : entity.y;
+            const direction = entity.currentDirection !== undefined ? entity.currentDirection : (entity.direction || 0);
+
+            // Draw FOV cone first (behind character)
+            if (state.showFOV && (entity.type === ENTITY_TYPES.OPERATOR || entity.type === ENTITY_TYPES.THREAT)) {
+                const fovAngle = entity.fovAngle || state.fovAngle;
+                const fovRange = entity.fovRange || state.fovRange;
+                const fovColor = entity.type === ENTITY_TYPES.THREAT ? '#d32f2f' : (entity.color || color);
+                
+                drawFOVCone(x, y, direction, fovAngle, fovRange, fovColor);
+            }
+
+            // Circle - smaller radius (10)
+            ctx.fillStyle = '#fff';
+            ctx.strokeStyle = isSelected ? '#000' : color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Direction indicator (small triangle pointing in facing direction)
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            const triDist = 13;
+            const triSize = 4;
+            ctx.moveTo(x + Math.cos(direction) * triDist, y + Math.sin(direction) * triDist);
+            ctx.lineTo(x + Math.cos(direction - 2.5) * (triDist - triSize), y + Math.sin(direction - 2.5) * (triDist - triSize));
+            ctx.lineTo(x + Math.cos(direction + 2.5) * (triDist - triSize), y + Math.sin(direction + 2.5) * (triDist - triSize));
+            ctx.closePath();
+            ctx.fill();
+
+            // Letter - smaller font
+            ctx.fillStyle = color;
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(letter, x, y + 1);
+
+            // Label
+            if (entity.label) {
+                ctx.fillStyle = '#333';
+                ctx.font = 'bold 9px sans-serif';
+                ctx.fillText(entity.label, x, y + 20);
+            }
+
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+
+            // Selection ring
+            if (isSelected) {
+                ctx.strokeStyle = '#2196F3';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.arc(x, y, 16, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
+        function drawFOVCone(x, y, direction, fovAngleDeg, fovRange, color) {
+            const halfAngle = (fovAngleDeg * Math.PI / 180) / 2;
+            
+            ctx.save();
+            ctx.globalAlpha = 0.15;
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.arc(x, y, fovRange, direction - halfAngle, direction + halfAngle);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.globalAlpha = 0.4;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + Math.cos(direction - halfAngle) * fovRange, y + Math.sin(direction - halfAngle) * fovRange);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + Math.cos(direction + halfAngle) * fovRange, y + Math.sin(direction + halfAngle) * fovRange);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // ========== EVENT HANDLERS ==========
+        canvas.addEventListener('mousedown', (e) => {
+            const screenPos = getMousePos(e);
+            const worldPos = screenToWorld(screenPos.x, screenPos.y);
+            const snapped = { x: snapToGrid(worldPos.x), y: snapToGrid(worldPos.y) };
+
+            // Space + click = pan
+            if (state.spaceHeld || state.tool === 'pan') {
+                state.panning = true;
+                state.panStart = { x: e.clientX - state.panX, y: e.clientY - state.panY };
+                canvas.classList.add('cursor-grabbing');
+                return;
+            }
+
+            switch (state.tool) {
+                case 'select':
+                    const found = findEntityAt(worldPos.x, worldPos.y);
+                    state.selected = found;
+                    if (found) {
+                        const item = found.item;
+                        if (item.x !== undefined) {
+                            const ix = item.currentX !== undefined ? item.currentX : item.x;
+                            const iy = item.currentY !== undefined ? item.currentY : item.y;
+                            state.dragOffset = { x: worldPos.x - ix, y: worldPos.y - iy };
+                        } else if (item.x1 !== undefined) {
+                            state.dragOffset = { x: worldPos.x - item.x1, y: worldPos.y - item.y1, isLine: true,
+                                dx: item.x2 - item.x1, dy: item.y2 - item.y1 };
+                        } else if (item.points) {
+                            state.dragOffset = { x: worldPos.x, y: worldPos.y, isPath: true };
+                        }
+                    }
+                    break;
+
+                case 'erase':
+                    const toErase = findEntityAt(worldPos.x, worldPos.y);
+                    if (toErase) {
+                        if (toErase.type === 'drawing') {
+                            state.drawings.splice(toErase.index, 1);
+                        } else {
+                            const entity = toErase.item;
+                            if (entity.type === ENTITY_TYPES.WALL) {
+                                const newWalls = eraseWallSection(entity, worldPos);
+                                state.entities.splice(toErase.index, 1);
+                                state.entities.push(...newWalls);
+                            } else {
+                                state.entities.splice(toErase.index, 1);
+                            }
+                        }
+                        state.selected = null;
+                        saveState();
+                    }
+                    break;
+
+                case 'pen':
+                    state.drawing = true;
+                    state.currentPath = [worldPos];
+                    break;
+
+                case 'line':
+                case 'arrow':
+                case 'rect':
+                    state.drawing = true;
+                    state.drawStart = worldPos;
+                    state.currentPath = [worldPos];
+                    break;
+
+                case 'text':
+                    showTextInput(screenPos.x, screenPos.y, worldPos);
+                    break;
+
+                case 'wall':
+                case 'door-closed':
+                case 'door-open':
+                    state.drawing = true;
+                    state.drawStart = snapped;
+                    state.currentPath = [snapped];
+                    break;
+
+                case 'path':
+                    // If clicking on a character, select it (unless already selected, then start drawing)
+                    const clickedForPath = findEntityAt(worldPos.x, worldPos.y);
+                    if (clickedForPath && clickedForPath.type === 'entity' && 
+                        [ENTITY_TYPES.OPERATOR, ENTITY_TYPES.THREAT, ENTITY_TYPES.CIVILIAN].includes(clickedForPath.item.type)) {
+                        // If this is already the selected entity, start drawing from here
+                        if (state.selected && state.selected.item === clickedForPath.item) {
+                            state.drawing = true;
+                            state.currentPath = [worldPos];
+                            break;
+                        }
+                        // Otherwise select it
+                        state.selected = clickedForPath;
+                        draw();
+                        break;
+                    }
+                    // If we have a selected character and clicked elsewhere, start drawing
+                    if (state.selected && state.selected.type === 'entity' && 
+                        [ENTITY_TYPES.OPERATOR, ENTITY_TYPES.THREAT, ENTITY_TYPES.CIVILIAN].includes(state.selected.item.type)) {
+                        state.drawing = true;
+                        state.currentPath = [worldPos];
+                    }
+                    break;
+
+                case 'lookpoint':
+                    // If clicking on a character, select it first
+                    const clickedForLook = findEntityAt(worldPos.x, worldPos.y);
+                    if (clickedForLook && clickedForLook.type === 'entity' && 
+                        [ENTITY_TYPES.OPERATOR, ENTITY_TYPES.THREAT, ENTITY_TYPES.CIVILIAN].includes(clickedForLook.item.type)) {
+                        state.selected = clickedForLook;
+                        state.pendingLookPoint = null;
+                        draw();
+                        break;
+                    }
+                    // If we have a pending look point, this click sets the direction
+                    if (state.pendingLookPoint) {
+                        const pending = state.pendingLookPoint;
+                        const direction = Math.atan2(
+                            worldPos.y - pending.position.y,
+                            worldPos.x - pending.position.x
+                        );
+                        
+                        // Add the look keyframe
+                        if (!pending.entity.lookKeyframes) {
+                            pending.entity.lookKeyframes = [];
+                        }
+                        pending.entity.lookKeyframes.push({
+                            distance: pending.distance,
+                            direction: direction
+                        });
+                        
+                        // Sort by distance
+                        pending.entity.lookKeyframes.sort((a, b) => a.distance - b.distance);
+                        
+                        state.pendingLookPoint = null;
+                        saveState();
+                    } 
+                    // Otherwise, if we have a selected entity with a path, find nearest point on path
+                    else if (state.selected && state.selected.type === 'entity' && 
+                             state.selected.item.path && state.selected.item.path.length > 1) {
+                        const nearest = getNearestPathPoint(state.selected.item.path, worldPos);
+                        if (nearest && nearest.position) {
+                            // Check if click is close enough to path (within 30 pixels)
+                            const clickDist = Math.hypot(worldPos.x - nearest.position.x, worldPos.y - nearest.position.y);
+                            if (clickDist < 30) {
+                                state.pendingLookPoint = {
+                                    entity: state.selected.item,
+                                    distance: nearest.distance,
+                                    position: nearest.position
+                                };
+                            }
+                        }
+                    }
+                    break;
+
+                case 'operator':
+                    const opNum = state.entities.filter(e => e.type === ENTITY_TYPES.OPERATOR).length + 1;
+                    state.entities.push({
+                        id: Date.now(), type: ENTITY_TYPES.OPERATOR,
+                        x: snapped.x, y: snapped.y, color: state.operatorColor,
+                        label: String(opNum), path: [],
+                        direction: 0, fovAngle: state.fovAngle, fovRange: state.fovRange
+                    });
+                    saveState();
+                    break;
+
+                case 'threat':
+                    state.entities.push({
+                        id: Date.now(), type: ENTITY_TYPES.THREAT,
+                        x: snapped.x, y: snapped.y, path: [],
+                        direction: 0, fovAngle: 60, fovRange: 100
+                    });
+                    saveState();
+                    break;
+
+                case 'civilian':
+                    state.entities.push({
+                        id: Date.now(), type: ENTITY_TYPES.CIVILIAN,
+                        x: snapped.x, y: snapped.y, path: [],
+                        direction: 0
+                    });
+                    saveState();
+                    break;
+            }
+
+            draw();
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const screenPos = getMousePos(e);
+            const worldPos = screenToWorld(screenPos.x, screenPos.y);
+            const snapped = { x: snapToGrid(worldPos.x), y: snapToGrid(worldPos.y) };
+
+            // Panning
+            if (state.panning) {
+                state.panX = e.clientX - state.panStart.x;
+                state.panY = e.clientY - state.panStart.y;
+                draw();
+                return;
+            }
+
+            // Drawing
+            if (state.drawing) {
+                if (state.tool === 'pen' || state.tool === 'path') {
+                    state.currentPath.push(worldPos);
+                } else if (['line', 'arrow', 'rect'].includes(state.tool)) {
+                    state.currentPath = [worldPos];
+                } else if (['wall', 'door-closed', 'door-open'].includes(state.tool)) {
+                    state.currentPath = [snapped];
+                }
+                draw();
+                return;
+            }
+
+            // Dragging selection
+            if (state.selected && state.dragOffset && !state.playing) {
+                const item = state.selected.item;
+                if (state.dragOffset.isPath && item.points) {
+                    const dx = worldPos.x - state.dragOffset.x;
+                    const dy = worldPos.y - state.dragOffset.y;
+                    item.points = item.points.map(p => ({ x: p.x + dx, y: p.y + dy }));
+                    state.dragOffset.x = worldPos.x;
+                    state.dragOffset.y = worldPos.y;
+                } else if (state.dragOffset.isLine) {
+                    const newX1 = worldPos.x - state.dragOffset.x;
+                    const newY1 = worldPos.y - state.dragOffset.y;
+                    item.x1 = snapToGrid(newX1);
+                    item.y1 = snapToGrid(newY1);
+                    item.x2 = item.x1 + state.dragOffset.dx;
+                    item.y2 = item.y1 + state.dragOffset.dy;
+                } else if (item.x !== undefined) {
+                    const newX = snapped.x;
+                    const newY = snapped.y;
+                    // Update path if exists (shift path by movement delta)
+                    if (item.path && item.path.length > 0) {
+                        const dx = newX - item.x;
+                        const dy = newY - item.y;
+                        item.path = item.path.map(p => ({ x: p.x + dx, y: p.y + dy }));
+                    }
+                    item.x = newX;
+                    item.y = newY;
+                    item.currentX = newX;
+                    item.currentY = newY;
+                }
+                draw();
+            }
+
+            updateCursor(worldPos);
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (state.panning) {
+                state.panning = false;
+                canvas.classList.remove('cursor-grabbing');
+                updateCursor(screenToWorld(...Object.values(getMousePos(e))));
+                return;
+            }
+
+            if (state.drawing) {
+                const worldPos = screenToWorld(...Object.values(getMousePos(e)));
+                const snapped = { x: snapToGrid(worldPos.x), y: snapToGrid(worldPos.y) };
+
+                if (state.tool === 'pen' && state.currentPath.length > 1) {
+                    state.drawings.push({
+                        id: Date.now(), type: DRAWING_TYPES.PEN,
+                        points: [...state.currentPath],
+                        color: state.drawColor, size: state.strokeSize
+                    });
+                    saveState();
+                } else if (state.tool === 'path' && state.selected && state.currentPath.length > 1) {
+                    // Simplify and smooth the drawn path for cleaner movement
+                    const rawPath = [{ x: state.selected.item.x, y: state.selected.item.y }, ...state.currentPath];
+                    const simplified = simplifyPath(rawPath, 5);
+                    const smoothed = simplified.length >= 3 ? smoothPath(simplified, 3) : simplified;
+                    
+                    // Assign path to selected entity
+                    state.selected.item.path = smoothed;
+                    // Reset playback state since we have a new path
+                    state.playbackComplete = false;
+                    state.selected.item.currentX = state.selected.item.x;
+                    state.selected.item.currentY = state.selected.item.y;
+                    state.selected.item.currentDirection = state.selected.item.direction;
+                    saveState();
+                } else if (['line', 'arrow'].includes(state.tool) && state.drawStart) {
+                    const end = state.currentPath[state.currentPath.length - 1] || worldPos;
+                    if (Math.hypot(end.x - state.drawStart.x, end.y - state.drawStart.y) > 5) {
+                        state.drawings.push({
+                            id: Date.now(),
+                            type: state.tool === 'arrow' ? DRAWING_TYPES.ARROW : DRAWING_TYPES.LINE,
+                            x1: state.drawStart.x, y1: state.drawStart.y,
+                            x2: end.x, y2: end.y,
+                            color: state.drawColor, size: state.strokeSize
+                        });
+                        saveState();
+                    }
+                } else if (state.tool === 'rect' && state.drawStart) {
+                    const end = state.currentPath[state.currentPath.length - 1] || worldPos;
+                    if (Math.abs(end.x - state.drawStart.x) > 5 && Math.abs(end.y - state.drawStart.y) > 5) {
+                        state.drawings.push({
+                            id: Date.now(), type: DRAWING_TYPES.RECT,
+                            x1: state.drawStart.x, y1: state.drawStart.y,
+                            x2: end.x, y2: end.y,
+                            color: state.drawColor, size: state.strokeSize
+                        });
+                        saveState();
+                    }
+                } else if (['wall', 'door-closed', 'door-open'].includes(state.tool) && state.drawStart) {
+                    const end = snapped;
+                    const dist = Math.hypot(end.x - state.drawStart.x, end.y - state.drawStart.y);
+                    if (dist >= 10) {
+                        const entityData = {
+                            id: Date.now(), type: state.tool,
+                            x1: state.drawStart.x, y1: state.drawStart.y,
+                            x2: end.x, y2: end.y
+                        };
+                        // Add swing direction for doors
+                        if (state.tool === 'door-closed' || state.tool === 'door-open') {
+                            entityData.swing = state.doorSwing;
+                        }
+                        state.entities.push(entityData);
+                        saveState();
+                    }
+                }
+
+                state.drawing = false;
+                state.drawStart = null;
+                state.currentPath = [];
+            }
+
+            if (state.selected && state.dragOffset) {
+                saveState();
+                state.dragOffset = null;
+            }
+
+            draw();
+        });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const screenPos = getMousePos(e);
+            const worldBefore = screenToWorld(screenPos.x, screenPos.y);
+
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            state.zoom = Math.max(0.2, Math.min(5, state.zoom * zoomFactor));
+
+            const worldAfter = screenToWorld(screenPos.x, screenPos.y);
+            state.panX += (worldAfter.x - worldBefore.x) * state.zoom;
+            state.panY += (worldAfter.y - worldBefore.y) * state.zoom;
+
+            document.getElementById('zoomDisplay').textContent = Math.round(state.zoom * 100) + '%';
+            draw();
+        }, { passive: false });
+
+        function updateCursor(worldPos) {
+            canvas.className = '';
+            if (state.spaceHeld || state.tool === 'pan') {
+                canvas.classList.add(state.panning ? 'cursor-grabbing' : 'cursor-grab');
+            } else if (state.tool === 'select') {
+                const found = findEntityAt(worldPos.x, worldPos.y);
+                canvas.classList.add(found ? 'cursor-move' : 'cursor-crosshair');
+            } else if (state.tool === 'text') {
+                canvas.classList.add('cursor-text');
+            } else {
+                canvas.classList.add('cursor-crosshair');
+            }
+        }
+
+        // Text input
+        function showTextInput(sx, sy, worldPos) {
+            const overlay = document.getElementById('textInput');
+            const input = document.getElementById('textInputField');
+            overlay.style.display = 'block';
+            overlay.style.left = sx + 'px';
+            overlay.style.top = sy + 'px';
+            input.value = '';
+            input.focus();
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter' && input.value.trim()) {
+                    ctx.font = `bold ${state.strokeSize * 5}px sans-serif`;
+                    const metrics = ctx.measureText(input.value);
+                    state.drawings.push({
+                        id: Date.now(), type: DRAWING_TYPES.TEXT,
+                        x: worldPos.x, y: worldPos.y,
+                        text: input.value, color: state.drawColor,
+                        size: state.strokeSize, width: metrics.width
+                    });
+                    saveState();
+                    overlay.style.display = 'none';
+                    draw();
+                } else if (e.key === 'Escape') {
+                    overlay.style.display = 'none';
+                }
+            };
+        }
+
+        // Keyboard
+        document.addEventListener('keydown', (e) => {
+            if (e.target.matches('input, textarea')) return;
+
+            if (e.code === 'Space' && !state.spaceHeld) {
+                state.spaceHeld = true;
+                canvas.classList.add('cursor-grab');
+            }
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (state.selected) {
+                    if (state.selected.type === 'drawing') {
+                        state.drawings.splice(state.selected.index, 1);
+                    } else {
+                        state.entities.splice(state.selected.index, 1);
+                    }
+                    state.selected = null;
+                    saveState();
+                    draw();
+                }
+            }
+            if (e.key === 'Escape') {
+                state.selected = null;
+                state.drawing = false;
+                state.currentPath = [];
+                state.pendingLookPoint = null;
+                document.getElementById('textInput').style.display = 'none';
+                draw();
+            }
+            if ((e.key === 'r' || e.key === 'R') && state.selected && state.selected.item.direction !== undefined) {
+                const rotateAmount = e.shiftKey ? -Math.PI / 8 : Math.PI / 8;
+                state.selected.item.direction += rotateAmount;
+                saveState();
+                draw();
+            }
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'z') { e.preventDefault(); undo(); }
+                if (e.key === 'y') { e.preventDefault(); redo(); }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                state.spaceHeld = false;
+                canvas.classList.remove('cursor-grab');
+            }
+        });
+
+        // Tool buttons
+        document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.tool = btn.dataset.tool;
+                state.pendingLookPoint = null;
+                draw();
+            });
+        });
+
+        // Rotation buttons
+        document.getElementById('rotateLeftBtn').addEventListener('click', () => {
+            if (state.selected && state.selected.item && state.selected.item.direction !== undefined) {
+                state.selected.item.direction -= Math.PI / 8;
+                saveState();
+                draw();
+            }
+        });
+
+        document.getElementById('rotateRightBtn').addEventListener('click', () => {
+            if (state.selected && state.selected.item && state.selected.item.direction !== undefined) {
+                state.selected.item.direction += Math.PI / 8;
+                saveState();
+                draw();
+            }
+        });
+
+        // Clear path button
+        document.getElementById('clearPathBtn').addEventListener('click', () => {
+            if (state.selected && state.selected.item.path) {
+                state.selected.item.path = [];
+                state.selected.item.lookKeyframes = [];
+                // Reset entity to base position
+                state.selected.item.currentX = state.selected.item.x;
+                state.selected.item.currentY = state.selected.item.y;
+                state.selected.item.currentDirection = state.selected.item.direction;
+                state.playbackComplete = false;
+                saveState();
+                draw();
+            }
+        });
+
+        // Clear looks button
+        document.getElementById('clearLooksBtn').addEventListener('click', () => {
+            if (state.selected && state.selected.item.lookKeyframes) {
+                state.selected.item.lookKeyframes = [];
+                state.pendingLookPoint = null;
+                saveState();
+                draw();
+            }
+        });
+
+        // Color swatches
+        document.getElementById('drawColors').addEventListener('click', (e) => {
+            if (e.target.classList.contains('color-swatch')) {
+                document.querySelectorAll('#drawColors .color-swatch').forEach(s => s.classList.remove('active'));
+                e.target.classList.add('active');
+                state.drawColor = e.target.dataset.color;
+            }
+        });
+
+        document.getElementById('operatorColors').addEventListener('click', (e) => {
+            if (e.target.classList.contains('color-swatch')) {
+                document.querySelectorAll('#operatorColors .color-swatch').forEach(s => s.classList.remove('active'));
+                e.target.classList.add('active');
+                state.operatorColor = e.target.dataset.color;
+            }
+        });
+
+        // Sliders
+        document.getElementById('strokeSize').addEventListener('input', (e) => {
+            state.strokeSize = parseInt(e.target.value);
+            document.getElementById('strokeSizeVal').textContent = state.strokeSize;
+        });
+
+        document.getElementById('fovAngle').addEventListener('input', (e) => {
+            state.fovAngle = parseInt(e.target.value);
+            document.getElementById('fovAngleVal').textContent = state.fovAngle;
+            // Update selected operator's FOV if one is selected
+            if (state.selected && state.selected.item && 
+                (state.selected.item.type === ENTITY_TYPES.OPERATOR || state.selected.item.type === ENTITY_TYPES.THREAT)) {
+                state.selected.item.fovAngle = state.fovAngle;
+                draw();
+            }
+        });
+
+        document.getElementById('fovRange').addEventListener('input', (e) => {
+            state.fovRange = parseInt(e.target.value);
+            document.getElementById('fovRangeVal').textContent = state.fovRange;
+            // Update selected operator's FOV if one is selected
+            if (state.selected && state.selected.item && 
+                (state.selected.item.type === ENTITY_TYPES.OPERATOR || state.selected.item.type === ENTITY_TYPES.THREAT)) {
+                state.selected.item.fovRange = state.fovRange;
+                draw();
+            }
+        });
+
+        document.getElementById('doorSwing').addEventListener('change', (e) => {
+            state.doorSwing = e.target.value;
+            // Update selected door if one is selected
+            if (state.selected && state.selected.item && 
+                (state.selected.item.type === ENTITY_TYPES.DOOR_CLOSED || state.selected.item.type === ENTITY_TYPES.DOOR_OPEN)) {
+                state.selected.item.swing = state.doorSwing;
+                saveState();
+                draw();
+            }
+        });
+
+        // Playback controls
+        document.getElementById('playBtn').addEventListener('click', () => {
+            if (state.playing) {
+                stopPlayback(false);  // Paused, not completed
+            } else {
+                startPlayback();
+            }
+        });
+
+        document.getElementById('rewindBtn').addEventListener('click', rewindPlayback);
+
+        document.getElementById('speedSelect').addEventListener('change', (e) => {
+            state.playbackSpeed = parseFloat(e.target.value);
+        });
+
+        // Toolbar buttons
+        document.getElementById('newBtn').addEventListener('click', () => {
+            if (confirm('Clear everything?')) {
+                stopPlayback(false);
+                state.playbackComplete = false;
+                state.entities = [];
+                state.drawings = [];
+                state.selected = null;
+                state.zoom = 1;
+                state.panX = 0;
+                state.panY = 0;
+                saveState();
+                document.getElementById('zoomDisplay').textContent = '100%';
+                draw();
+            }
+        });
+
+        document.getElementById('undoBtn').addEventListener('click', undo);
+        document.getElementById('redoBtn').addEventListener('click', redo);
+
+        document.getElementById('zoomInBtn').addEventListener('click', () => {
+            state.zoom = Math.min(5, state.zoom * 1.2);
+            document.getElementById('zoomDisplay').textContent = Math.round(state.zoom * 100) + '%';
+            draw();
+        });
+
+        document.getElementById('zoomOutBtn').addEventListener('click', () => {
+            state.zoom = Math.max(0.2, state.zoom / 1.2);
+            document.getElementById('zoomDisplay').textContent = Math.round(state.zoom * 100) + '%';
+            draw();
+        });
+
+        document.getElementById('zoomFitBtn').addEventListener('click', () => {
+            state.zoom = 1;
+            state.panX = 0;
+            state.panY = 0;
+            document.getElementById('zoomDisplay').textContent = '100%';
+            draw();
+        });
+
+        document.getElementById('gridToggle').addEventListener('click', (e) => {
+            state.showGrid = !state.showGrid;
+            e.target.classList.toggle('active', state.showGrid);
+            draw();
+        });
+
+        document.getElementById('fovToggle').addEventListener('click', (e) => {
+            state.showFOV = !state.showFOV;
+            e.target.classList.toggle('active', state.showFOV);
+            draw();
+        });
+
+        // Save/Load
+        const modal = document.getElementById('modal');
+        document.getElementById('saveBtn').addEventListener('click', () => {
+            document.getElementById('modalTitle').textContent = 'Save Scenario';
+            document.getElementById('modalData').value = JSON.stringify({ 
+                entities: state.entities.map(e => ({...e, currentX: undefined, currentY: undefined, currentDirection: undefined})), 
+                drawings: state.drawings 
+            }, null, 2);
+            document.getElementById('modalConfirm').textContent = 'Copy';
+            modal.classList.add('active');
+        });
+
+        document.getElementById('loadBtn').addEventListener('click', () => {
+            document.getElementById('modalTitle').textContent = 'Load Scenario';
+            document.getElementById('modalData').value = '';
+            document.getElementById('modalData').placeholder = 'Paste scenario JSON...';
+            document.getElementById('modalConfirm').textContent = 'Load';
+            modal.classList.add('active');
+        });
+
+        document.getElementById('modalCancel').addEventListener('click', () => modal.classList.remove('active'));
+
+        document.getElementById('modalConfirm').addEventListener('click', () => {
+            const title = document.getElementById('modalTitle').textContent;
+            const data = document.getElementById('modalData').value;
+            if (title.includes('Save')) {
+                navigator.clipboard.writeText(data);
+                alert('Copied to clipboard!');
+            } else {
+                try {
+                    const parsed = JSON.parse(data);
+                    state.entities = parsed.entities || [];
+                    state.drawings = parsed.drawings || [];
+                    state.selected = null;
+                    saveState();
+                    draw();
+                } catch { alert('Invalid JSON'); return; }
+            }
+            modal.classList.remove('active');
+        });
+
+        // Initialize
+        saveState();
+        draw();
+
+        // Sidebar toggle for mobile
+        document.getElementById('sidebarToggle').addEventListener('click', () => {
+            document.querySelector('.sidebar').classList.toggle('open');
+        });
+
+        // Close sidebar when clicking on canvas (mobile)
+        canvas.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                document.querySelector('.sidebar').classList.remove('open');
+            }
+        });
+
+        // ========== TOUCH EVENT HANDLERS ==========
+        let touchState = {
+            lastTouchEnd: 0,
+            pinchStartDist: 0,
+            pinchStartZoom: 1,
+            isTwoFinger: false
+        };
+
+        function getTouchPos(touch) {
+            const rect = canvas.getBoundingClientRect();
+            return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+        }
+
+        function getTouchDistance(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.hypot(dx, dy);
+        }
+
+        function getTouchCenter(touches) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (touches[0].clientX + touches[1].clientX) / 2 - rect.left,
+                y: (touches[0].clientY + touches[1].clientY) / 2 - rect.top
+            };
+        }
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            
+            if (e.touches.length === 2) {
+                // Two finger - pinch zoom or pan
+                touchState.isTwoFinger = true;
+                touchState.pinchStartDist = getTouchDistance(e.touches);
+                touchState.pinchStartZoom = state.zoom;
+                const center = getTouchCenter(e.touches);
+                state.panStart = { x: center.x - state.panX, y: center.y - state.panY };
+                return;
+            }
+            
+            touchState.isTwoFinger = false;
+            const touch = e.touches[0];
+            const screenPos = getTouchPos(touch);
+            const worldPos = screenToWorld(screenPos.x, screenPos.y);
+            const snapped = { x: snapToGrid(worldPos.x), y: snapToGrid(worldPos.y) };
+
+            // Handle like mousedown
+            if (state.tool === 'pan') {
+                state.panning = true;
+                state.panStart = { x: touch.clientX - state.panX, y: touch.clientY - state.panY };
+                return;
+            }
+
+            switch (state.tool) {
+                case 'select':
+                    const found = findEntityAt(worldPos.x, worldPos.y);
+                    state.selected = found;
+                    if (found) {
+                        const item = found.item;
+                        if (item.x !== undefined) {
+                            const ix = item.currentX !== undefined ? item.currentX : item.x;
+                            const iy = item.currentY !== undefined ? item.currentY : item.y;
+                            state.dragOffset = { x: worldPos.x - ix, y: worldPos.y - iy };
+                        } else if (item.x1 !== undefined) {
+                            state.dragOffset = { x: worldPos.x - item.x1, y: worldPos.y - item.y1, isLine: true,
+                                dx: item.x2 - item.x1, dy: item.y2 - item.y1 };
+                        } else if (item.points) {
+                            state.dragOffset = { x: worldPos.x, y: worldPos.y, isPath: true };
+                        }
+                    }
+                    break;
+
+                case 'erase':
+                    const toEraseT = findEntityAt(worldPos.x, worldPos.y);
+                    if (toEraseT) {
+                        if (toEraseT.type === 'drawing') {
+                            state.drawings.splice(toEraseT.index, 1);
+                        } else {
+                            const entityT = toEraseT.item;
+                            if (entityT.type === ENTITY_TYPES.WALL) {
+                                const newWallsT = eraseWallSection(entityT, worldPos);
+                                state.entities.splice(toEraseT.index, 1);
+                                state.entities.push(...newWallsT);
+                            } else {
+                                state.entities.splice(toEraseT.index, 1);
+                            }
+                        }
+                        state.selected = null;
+                        saveState();
+                    }
+                    break;
+
+                case 'pen':
+                    state.drawing = true;
+                    state.currentPath = [worldPos];
+                    break;
+
+                case 'line':
+                case 'arrow':
+                case 'rect':
+                    state.drawing = true;
+                    state.drawStart = worldPos;
+                    state.currentPath = [worldPos];
+                    break;
+
+                case 'wall':
+                case 'door-closed':
+                case 'door-open':
+                    state.drawing = true;
+                    state.drawStart = snapped;
+                    state.currentPath = [snapped];
+                    break;
+
+                case 'path':
+                    // If clicking on a character, select it (unless already selected, then start drawing)
+                    const clickedForPathT = findEntityAt(worldPos.x, worldPos.y);
+                    if (clickedForPathT && clickedForPathT.type === 'entity' && 
+                        [ENTITY_TYPES.OPERATOR, ENTITY_TYPES.THREAT, ENTITY_TYPES.CIVILIAN].includes(clickedForPathT.item.type)) {
+                        // If this is already the selected entity, start drawing from here
+                        if (state.selected && state.selected.item === clickedForPathT.item) {
+                            state.drawing = true;
+                            state.currentPath = [worldPos];
+                            break;
+                        }
+                        // Otherwise select it
+                        state.selected = clickedForPathT;
+                        draw();
+                        break;
+                    }
+                    // If we have a selected character and touched elsewhere, start drawing
+                    if (state.selected && state.selected.type === 'entity' && 
+                        [ENTITY_TYPES.OPERATOR, ENTITY_TYPES.THREAT, ENTITY_TYPES.CIVILIAN].includes(state.selected.item.type)) {
+                        state.drawing = true;
+                        state.currentPath = [worldPos];
+                    }
+                    break;
+
+                case 'lookpoint':
+                    // If clicking on a character, select it first
+                    const clickedForLookT = findEntityAt(worldPos.x, worldPos.y);
+                    if (clickedForLookT && clickedForLookT.type === 'entity' && 
+                        [ENTITY_TYPES.OPERATOR, ENTITY_TYPES.THREAT, ENTITY_TYPES.CIVILIAN].includes(clickedForLookT.item.type)) {
+                        state.selected = clickedForLookT;
+                        state.pendingLookPoint = null;
+                        draw();
+                        break;
+                    }
+                    if (state.pendingLookPoint) {
+                        const pending = state.pendingLookPoint;
+                        const direction = Math.atan2(
+                            worldPos.y - pending.position.y,
+                            worldPos.x - pending.position.x
+                        );
+                        
+                        if (!pending.entity.lookKeyframes) {
+                            pending.entity.lookKeyframes = [];
+                        }
+                        pending.entity.lookKeyframes.push({
+                            distance: pending.distance,
+                            direction: direction
+                        });
+                        pending.entity.lookKeyframes.sort((a, b) => a.distance - b.distance);
+                        
+                        state.pendingLookPoint = null;
+                        saveState();
+                    } else if (state.selected && state.selected.type === 'entity' && 
+                             state.selected.item.path && state.selected.item.path.length > 1) {
+                        const nearest = getNearestPathPoint(state.selected.item.path, worldPos);
+                        if (nearest && nearest.position) {
+                            const clickDist = Math.hypot(worldPos.x - nearest.position.x, worldPos.y - nearest.position.y);
+                            if (clickDist < 40) {
+                                state.pendingLookPoint = {
+                                    entity: state.selected.item,
+                                    distance: nearest.distance,
+                                    position: nearest.position
+                                };
+                            }
+                        }
+                    }
+                    break;
+
+                case 'operator':
+                    const opNum = state.entities.filter(e => e.type === ENTITY_TYPES.OPERATOR).length + 1;
+                    state.entities.push({
+                        id: Date.now(), type: ENTITY_TYPES.OPERATOR,
+                        x: snapped.x, y: snapped.y, color: state.operatorColor,
+                        label: String(opNum), path: [],
+                        direction: 0, fovAngle: state.fovAngle, fovRange: state.fovRange
+                    });
+                    saveState();
+                    break;
+
+                case 'threat':
+                    state.entities.push({
+                        id: Date.now(), type: ENTITY_TYPES.THREAT,
+                        x: snapped.x, y: snapped.y, path: [],
+                        direction: 0, fovAngle: 60, fovRange: 100
+                    });
+                    saveState();
+                    break;
+
+                case 'civilian':
+                    state.entities.push({
+                        id: Date.now(), type: ENTITY_TYPES.CIVILIAN,
+                        x: snapped.x, y: snapped.y, path: [],
+                        direction: 0
+                    });
+                    saveState();
+                    break;
+            }
+
+            draw();
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            
+            if (e.touches.length === 2) {
+                // Pinch zoom
+                const newDist = getTouchDistance(e.touches);
+                const center = getTouchCenter(e.touches);
+                const worldBefore = screenToWorld(center.x, center.y);
+                
+                const scale = newDist / touchState.pinchStartDist;
+                state.zoom = Math.max(0.2, Math.min(5, touchState.pinchStartZoom * scale));
+                
+                const worldAfter = screenToWorld(center.x, center.y);
+                state.panX += (worldAfter.x - worldBefore.x) * state.zoom;
+                state.panY += (worldAfter.y - worldBefore.y) * state.zoom;
+                
+                document.getElementById('zoomDisplay').textContent = Math.round(state.zoom * 100) + '%';
+                draw();
+                return;
+            }
+            
+            if (touchState.isTwoFinger) return;
+            
+            const touch = e.touches[0];
+            const screenPos = getTouchPos(touch);
+            const worldPos = screenToWorld(screenPos.x, screenPos.y);
+            const snapped = { x: snapToGrid(worldPos.x), y: snapToGrid(worldPos.y) };
+
+            if (state.panning) {
+                state.panX = touch.clientX - state.panStart.x;
+                state.panY = touch.clientY - state.panStart.y;
+                draw();
+                return;
+            }
+
+            if (state.drawing) {
+                if (state.tool === 'pen' || state.tool === 'path') {
+                    state.currentPath.push(worldPos);
+                } else if (['line', 'arrow', 'rect'].includes(state.tool)) {
+                    state.currentPath = [worldPos];
+                } else if (['wall', 'door-closed', 'door-open'].includes(state.tool)) {
+                    state.currentPath = [snapped];
+                }
+                draw();
+                return;
+            }
+
+            if (state.selected && state.dragOffset && !state.playing) {
+                const item = state.selected.item;
+                if (state.dragOffset.isPath && item.points) {
+                    const dx = worldPos.x - state.dragOffset.x;
+                    const dy = worldPos.y - state.dragOffset.y;
+                    item.points = item.points.map(p => ({ x: p.x + dx, y: p.y + dy }));
+                    state.dragOffset.x = worldPos.x;
+                    state.dragOffset.y = worldPos.y;
+                } else if (state.dragOffset.isLine) {
+                    const newX1 = worldPos.x - state.dragOffset.x;
+                    const newY1 = worldPos.y - state.dragOffset.y;
+                    item.x1 = snapToGrid(newX1);
+                    item.y1 = snapToGrid(newY1);
+                    item.x2 = item.x1 + state.dragOffset.dx;
+                    item.y2 = item.y1 + state.dragOffset.dy;
+                } else if (item.x !== undefined) {
+                    const newX = snapped.x;
+                    const newY = snapped.y;
+                    if (item.path && item.path.length > 0) {
+                        const dx = newX - item.x;
+                        const dy = newY - item.y;
+                        item.path = item.path.map(p => ({ x: p.x + dx, y: p.y + dy }));
+                    }
+                    item.x = newX;
+                    item.y = newY;
+                    item.currentX = newX;
+                    item.currentY = newY;
+                }
+                draw();
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            
+            touchState.isTwoFinger = false;
+            
+            if (state.panning) {
+                state.panning = false;
+                return;
+            }
+
+            if (state.drawing) {
+                const worldPos = state.currentPath.length > 0 ? state.currentPath[state.currentPath.length - 1] : { x: 0, y: 0 };
+                const snapped = { x: snapToGrid(worldPos.x), y: snapToGrid(worldPos.y) };
+
+                if (state.tool === 'pen' && state.currentPath.length > 1) {
+                    state.drawings.push({
+                        id: Date.now(), type: DRAWING_TYPES.PEN,
+                        points: [...state.currentPath],
+                        color: state.drawColor, size: state.strokeSize
+                    });
+                    saveState();
+                } else if (state.tool === 'path' && state.selected && state.currentPath.length > 1) {
+                    const rawPath = [{ x: state.selected.item.x, y: state.selected.item.y }, ...state.currentPath];
+                    const simplified = simplifyPath(rawPath, 5);
+                    const smoothed = simplified.length >= 3 ? smoothPath(simplified, 3) : simplified;
+                    
+                    state.selected.item.path = smoothed;
+                    state.playbackComplete = false;
+                    state.selected.item.currentX = state.selected.item.x;
+                    state.selected.item.currentY = state.selected.item.y;
+                    state.selected.item.currentDirection = state.selected.item.direction;
+                    saveState();
+                } else if (['line', 'arrow'].includes(state.tool) && state.drawStart) {
+                    const end = state.currentPath[state.currentPath.length - 1] || worldPos;
+                    if (Math.hypot(end.x - state.drawStart.x, end.y - state.drawStart.y) > 5) {
+                        state.drawings.push({
+                            id: Date.now(),
+                            type: state.tool === 'arrow' ? DRAWING_TYPES.ARROW : DRAWING_TYPES.LINE,
+                            x1: state.drawStart.x, y1: state.drawStart.y,
+                            x2: end.x, y2: end.y,
+                            color: state.drawColor, size: state.strokeSize
+                        });
+                        saveState();
+                    }
+                } else if (state.tool === 'rect' && state.drawStart) {
+                    const end = state.currentPath[state.currentPath.length - 1] || worldPos;
+                    if (Math.abs(end.x - state.drawStart.x) > 5 && Math.abs(end.y - state.drawStart.y) > 5) {
+                        state.drawings.push({
+                            id: Date.now(), type: DRAWING_TYPES.RECT,
+                            x1: state.drawStart.x, y1: state.drawStart.y,
+                            x2: end.x, y2: end.y,
+                            color: state.drawColor, size: state.strokeSize
+                        });
+                        saveState();
+                    }
+                } else if (['wall', 'door-closed', 'door-open'].includes(state.tool) && state.drawStart) {
+                    const end = snapped;
+                    const dist = Math.hypot(end.x - state.drawStart.x, end.y - state.drawStart.y);
+                    if (dist >= 10) {
+                        const entityData = {
+                            id: Date.now(), type: state.tool,
+                            x1: state.drawStart.x, y1: state.drawStart.y,
+                            x2: end.x, y2: end.y
+                        };
+                        if (state.tool === 'door-closed' || state.tool === 'door-open') {
+                            entityData.swing = state.doorSwing;
+                        }
+                        state.entities.push(entityData);
+                        saveState();
+                    }
+                }
+
+                state.drawing = false;
+                state.drawStart = null;
+                state.currentPath = [];
+            }
+
+            if (state.selected && state.dragOffset) {
+                saveState();
+                state.dragOffset = null;
+            }
+
+            draw();
+        }, { passive: false });
+    </script>
+</body>
+</html>
