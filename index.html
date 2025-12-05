@@ -662,6 +662,14 @@
             <button id="newBtn">New</button>
             <button id="saveBtn">Save</button>
             <button id="loadBtn">Load</button>
+            <select id="scenarioSelect" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: white; cursor: pointer;">
+                <option value="">-- Scenarios --</option>
+                <option value="small-house">Small House</option>
+                <option value="l-corridor">L-Corridor</option>
+                <option value="apartment">Apartment</option>
+                <option value="warehouse">Warehouse</option>
+                <option value="bank">Bank</option>
+            </select>
         </div>
 
         <div class="help-panel">
@@ -750,6 +758,141 @@
             ARROW: 'arrow',
             RECT: 'rect',
             TEXT: 'text'
+        };
+
+        // Built-in scenarios
+        const SCENARIOS = {
+            'small-house': {
+                "name": "Small House - Two Room Clear",
+                "entities": [
+                    {"id": 1, "type": "wall", "x1": 100, "y1": 100, "x2": 400, "y2": 100},
+                    {"id": 2, "type": "wall", "x1": 400, "y1": 100, "x2": 400, "y2": 400},
+                    {"id": 3, "type": "wall", "x1": 400, "y1": 400, "x2": 100, "y2": 400},
+                    {"id": 4, "type": "wall", "x1": 100, "y1": 400, "x2": 100, "y2": 100},
+                    {"id": 5, "type": "wall", "x1": 250, "y1": 100, "x2": 250, "y2": 280},
+                    {"id": 6, "type": "door-closed", "x1": 250, "y1": 280, "x2": 250, "y2": 340, "swing": "in-right"},
+                    {"id": 7, "type": "wall", "x1": 250, "y1": 340, "x2": 250, "y2": 400},
+                    {"id": 8, "type": "door-closed", "x1": 100, "y1": 220, "x2": 100, "y2": 280, "swing": "in-right"},
+                    {"id": 10, "type": "threat", "x": 340, "y": 200, "direction": 3.14, "fovAngle": 60, "fovRange": 100, "path": []},
+                    {"id": 11, "type": "civilian", "x": 340, "y": 340, "direction": 3.14, "path": []},
+                    {"id": 12, "type": "operator", "x": 50, "y": 250, "color": "#388E3C", "label": "1", "direction": 0, "fovAngle": 90, "fovRange": 120, "path": []},
+                    {"id": 13, "type": "operator", "x": 50, "y": 300, "color": "#1976D2", "label": "2", "direction": 0, "fovAngle": 90, "fovRange": 120, "path": []}
+                ],
+                "drawings": []
+            },
+            'l-corridor': {
+                "name": "L-Shaped Corridor - Office Building",
+                "entities": [
+                    {"id": 1, "type": "wall", "x1": 100, "y1": 100, "x2": 200, "y2": 100},
+                    {"id": 2, "type": "wall", "x1": 200, "y1": 100, "x2": 200, "y2": 250},
+                    {"id": 3, "type": "wall", "x1": 200, "y1": 250, "x2": 450, "y2": 250},
+                    {"id": 4, "type": "wall", "x1": 450, "y1": 250, "x2": 450, "y2": 350},
+                    {"id": 5, "type": "wall", "x1": 450, "y1": 350, "x2": 200, "y2": 350},
+                    {"id": 6, "type": "wall", "x1": 200, "y1": 350, "x2": 200, "y2": 500},
+                    {"id": 7, "type": "wall", "x1": 200, "y1": 500, "x2": 100, "y2": 500},
+                    {"id": 8, "type": "wall", "x1": 100, "y1": 500, "x2": 100, "y2": 100},
+                    {"id": 9, "type": "wall", "x1": 280, "y1": 250, "x2": 280, "y2": 350},
+                    {"id": 10, "type": "door-closed", "x1": 280, "y1": 350, "x2": 280, "y2": 250, "swing": "in-left"},
+                    {"id": 11, "type": "wall", "x1": 350, "y1": 250, "x2": 350, "y2": 350},
+                    {"id": 12, "type": "threat", "x": 420, "y": 300, "direction": 3.14, "fovAngle": 70, "fovRange": 100, "path": []},
+                    {"id": 13, "type": "threat", "x": 150, "y": 450, "direction": -1.57, "fovAngle": 60, "fovRange": 80, "path": []},
+                    {"id": 14, "type": "operator", "x": 150, "y": 130, "color": "#388E3C", "label": "1", "direction": 1.57, "fovAngle": 90, "fovRange": 120, "path": []},
+                    {"id": 15, "type": "operator", "x": 120, "y": 130, "color": "#1976D2", "label": "2", "direction": 1.57, "fovAngle": 90, "fovRange": 120, "path": []}
+                ],
+                "drawings": []
+            },
+            'apartment': {
+                "name": "Apartment - Hostage Rescue",
+                "entities": [
+                    {"id": 1, "type": "wall", "x1": 100, "y1": 100, "x2": 500, "y2": 100},
+                    {"id": 2, "type": "wall", "x1": 500, "y1": 100, "x2": 500, "y2": 400},
+                    {"id": 3, "type": "wall", "x1": 500, "y1": 400, "x2": 100, "y2": 400},
+                    {"id": 4, "type": "wall", "x1": 100, "y1": 400, "x2": 100, "y2": 100},
+                    {"id": 5, "type": "wall", "x1": 250, "y1": 100, "x2": 250, "y2": 200},
+                    {"id": 6, "type": "door-closed", "x1": 250, "y1": 200, "x2": 250, "y2": 260, "swing": "in-left"},
+                    {"id": 7, "type": "wall", "x1": 250, "y1": 260, "x2": 250, "y2": 400},
+                    {"id": 8, "type": "wall", "x1": 350, "y1": 100, "x2": 350, "y2": 180},
+                    {"id": 9, "type": "door-closed", "x1": 350, "y1": 180, "x2": 350, "y2": 240, "swing": "in-right"},
+                    {"id": 10, "type": "wall", "x1": 350, "y1": 240, "x2": 350, "y2": 300},
+                    {"id": 11, "type": "wall", "x1": 350, "y1": 300, "x2": 500, "y2": 300},
+                    {"id": 12, "type": "door-closed", "x1": 100, "y1": 200, "x2": 100, "y2": 260, "swing": "in-right"},
+                    {"id": 13, "type": "wall", "x1": 250, "y1": 300, "x2": 350, "y2": 300},
+                    {"id": 14, "type": "door-closed", "x1": 280, "y1": 300, "x2": 320, "y2": 300, "swing": "in-left"},
+                    {"id": 15, "type": "threat", "x": 300, "y": 150, "direction": 3.14, "fovAngle": 80, "fovRange": 100, "path": []},
+                    {"id": 16, "type": "threat", "x": 420, "y": 200, "direction": 2.5, "fovAngle": 60, "fovRange": 90, "path": []},
+                    {"id": 17, "type": "civilian", "x": 420, "y": 350, "direction": 1.57, "path": []},
+                    {"id": 18, "type": "civilian", "x": 450, "y": 350, "direction": 1.57, "path": []},
+                    {"id": 19, "type": "operator", "x": 50, "y": 220, "color": "#388E3C", "label": "1", "direction": 0, "fovAngle": 90, "fovRange": 120, "path": []},
+                    {"id": 20, "type": "operator", "x": 50, "y": 250, "color": "#1976D2", "label": "2", "direction": 0, "fovAngle": 90, "fovRange": 120, "path": []},
+                    {"id": 21, "type": "operator", "x": 50, "y": 280, "color": "#F57C00", "label": "3", "direction": 0, "fovAngle": 90, "fovRange": 120, "path": []}
+                ],
+                "drawings": []
+            },
+            'warehouse': {
+                "name": "Warehouse - Multiple Threats",
+                "entities": [
+                    {"id": 1, "type": "wall", "x1": 50, "y1": 50, "x2": 550, "y2": 50},
+                    {"id": 2, "type": "wall", "x1": 550, "y1": 50, "x2": 550, "y2": 450},
+                    {"id": 3, "type": "wall", "x1": 550, "y1": 450, "x2": 50, "y2": 450},
+                    {"id": 4, "type": "wall", "x1": 50, "y1": 450, "x2": 50, "y2": 50},
+                    {"id": 5, "type": "wall", "x1": 150, "y1": 120, "x2": 150, "y2": 200},
+                    {"id": 6, "type": "wall", "x1": 150, "y1": 120, "x2": 220, "y2": 120},
+                    {"id": 7, "type": "wall", "x1": 150, "y1": 280, "x2": 150, "y2": 380},
+                    {"id": 8, "type": "wall", "x1": 150, "y1": 280, "x2": 220, "y2": 280},
+                    {"id": 9, "type": "wall", "x1": 300, "y1": 150, "x2": 300, "y2": 250},
+                    {"id": 10, "type": "wall", "x1": 300, "y1": 150, "x2": 380, "y2": 150},
+                    {"id": 11, "type": "wall", "x1": 300, "y1": 300, "x2": 300, "y2": 400},
+                    {"id": 12, "type": "wall", "x1": 300, "y1": 300, "x2": 380, "y2": 300},
+                    {"id": 13, "type": "wall", "x1": 450, "y1": 100, "x2": 450, "y2": 180},
+                    {"id": 14, "type": "wall", "x1": 450, "y1": 100, "x2": 520, "y2": 100},
+                    {"id": 15, "type": "wall", "x1": 450, "y1": 320, "x2": 450, "y2": 420},
+                    {"id": 16, "type": "wall", "x1": 450, "y1": 320, "x2": 520, "y2": 320},
+                    {"id": 17, "type": "door-open", "x1": 50, "y1": 220, "x2": 50, "y2": 280, "swing": "in-right"},
+                    {"id": 18, "type": "threat", "x": 180, "y": 160, "direction": 0.5, "fovAngle": 70, "fovRange": 100, "path": []},
+                    {"id": 19, "type": "threat", "x": 340, "y": 200, "direction": 3.5, "fovAngle": 60, "fovRange": 90, "path": []},
+                    {"id": 20, "type": "threat", "x": 340, "y": 350, "direction": 2.5, "fovAngle": 70, "fovRange": 100, "path": []},
+                    {"id": 21, "type": "threat", "x": 480, "y": 250, "direction": 3.14, "fovAngle": 80, "fovRange": 110, "path": []},
+                    {"id": 22, "type": "operator", "x": 20, "y": 230, "color": "#388E3C", "label": "1", "direction": 0, "fovAngle": 90, "fovRange": 120, "path": []},
+                    {"id": 23, "type": "operator", "x": 20, "y": 260, "color": "#1976D2", "label": "2", "direction": 0, "fovAngle": 90, "fovRange": 120, "path": []},
+                    {"id": 24, "type": "operator", "x": 20, "y": 290, "color": "#F57C00", "label": "3", "direction": 0, "fovAngle": 90, "fovRange": 120, "path": []},
+                    {"id": 25, "type": "operator", "x": 20, "y": 320, "color": "#7B1FA2", "label": "4", "direction": 0, "fovAngle": 90, "fovRange": 120, "path": []}
+                ],
+                "drawings": []
+            },
+            'bank': {
+                "name": "Bank - Hostage Situation",
+                "entities": [
+                    {"id": 1, "type": "wall", "x1": 50, "y1": 80, "x2": 600, "y2": 80},
+                    {"id": 2, "type": "wall", "x1": 600, "y1": 80, "x2": 600, "y2": 450},
+                    {"id": 3, "type": "wall", "x1": 600, "y1": 450, "x2": 50, "y2": 450},
+                    {"id": 4, "type": "wall", "x1": 50, "y1": 450, "x2": 50, "y2": 80},
+                    {"id": 5, "type": "wall", "x1": 50, "y1": 280, "x2": 200, "y2": 280},
+                    {"id": 6, "type": "wall", "x1": 200, "y1": 280, "x2": 200, "y2": 200},
+                    {"id": 7, "type": "wall", "x1": 200, "y1": 200, "x2": 400, "y2": 200},
+                    {"id": 8, "type": "wall", "x1": 400, "y1": 200, "x2": 400, "y2": 280},
+                    {"id": 9, "type": "wall", "x1": 400, "y1": 280, "x2": 600, "y2": 280},
+                    {"id": 10, "type": "wall", "x1": 480, "y1": 280, "x2": 480, "y2": 450},
+                    {"id": 11, "type": "door-closed", "x1": 480, "y1": 340, "x2": 480, "y2": 400, "swing": "in-left"},
+                    {"id": 12, "type": "wall", "x1": 150, "y1": 280, "x2": 150, "y2": 450},
+                    {"id": 13, "type": "door-closed", "x1": 150, "y1": 340, "x2": 150, "y2": 400, "swing": "in-right"},
+                    {"id": 14, "type": "door-closed", "x1": 250, "y1": 200, "x2": 310, "y2": 200, "swing": "out-left"},
+                    {"id": 15, "type": "door-open", "x1": 50, "y1": 350, "x2": 50, "y2": 420, "swing": "in-right"},
+                    {"id": 16, "type": "threat", "x": 300, "y": 140, "direction": 1.57, "fovAngle": 90, "fovRange": 100, "path": []},
+                    {"id": 17, "type": "threat", "x": 530, "y": 350, "direction": 3.14, "fovAngle": 70, "fovRange": 90, "path": []},
+                    {"id": 18, "type": "threat", "x": 250, "y": 350, "direction": 0, "fovAngle": 60, "fovRange": 80, "path": []},
+                    {"id": 19, "type": "civilian", "x": 280, "y": 240, "direction": 1.57, "path": []},
+                    {"id": 20, "type": "civilian", "x": 310, "y": 240, "direction": 1.57, "path": []},
+                    {"id": 21, "type": "civilian", "x": 340, "y": 240, "direction": 1.57, "path": []},
+                    {"id": 22, "type": "civilian", "x": 370, "y": 240, "direction": 1.57, "path": []},
+                    {"id": 23, "type": "civilian", "x": 100, "y": 350, "direction": 0, "path": []},
+                    {"id": 24, "type": "civilian", "x": 100, "y": 380, "direction": 0, "path": []},
+                    {"id": 25, "type": "operator", "x": 20, "y": 370, "color": "#388E3C", "label": "1", "direction": 0, "fovAngle": 90, "fovRange": 120, "path": []},
+                    {"id": 26, "type": "operator", "x": 20, "y": 400, "color": "#1976D2", "label": "2", "direction": 0, "fovAngle": 90, "fovRange": 120, "path": []},
+                    {"id": 27, "type": "operator", "x": 20, "y": 430, "color": "#F57C00", "label": "3", "direction": 0, "fovAngle": 90, "fovRange": 120, "path": []},
+                    {"id": 28, "type": "operator", "x": 20, "y": 340, "color": "#7B1FA2", "label": "4", "direction": 0, "fovAngle": 90, "fovRange": 120, "path": []}
+                ],
+                "drawings": []
+            }
         };
 
         // ========== CANVAS SETUP ==========
@@ -2530,19 +2673,26 @@
 
         // Toolbar buttons
         document.getElementById('newBtn').addEventListener('click', () => {
-            if (confirm('Clear everything?')) {
-                stopPlayback(false);
-                state.playbackComplete = false;
-                state.entities = [];
-                state.drawings = [];
-                state.selected = null;
-                state.zoom = 1;
-                state.panX = 0;
-                state.panY = 0;
-                saveState();
-                document.getElementById('zoomDisplay').textContent = '100%';
-                draw();
-            }
+            stopPlayback(false);
+            state.playbackComplete = false;
+            state.playbackTime = 0;
+            state.entities = [];
+            state.drawings = [];
+            state.selected = null;
+            state.drawing = false;
+            state.currentPath = [];
+            state.drawStart = null;
+            state.pendingLookPoint = null;
+            state.pathBlocked = false;
+            state.zoom = 1;
+            state.panX = 0;
+            state.panY = 0;
+            // Reset history
+            state.history = [];
+            state.historyIndex = -1;
+            saveState();
+            document.getElementById('zoomDisplay').textContent = '100%';
+            draw();
         });
 
         document.getElementById('undoBtn').addEventListener('click', undo);
@@ -2598,6 +2748,32 @@
             document.getElementById('modalData').placeholder = 'Paste scenario JSON...';
             document.getElementById('modalConfirm').textContent = 'Load';
             modal.classList.add('active');
+        });
+
+        // Scenario dropdown handler
+        document.getElementById('scenarioSelect').addEventListener('change', (e) => {
+            const scenarioKey = e.target.value;
+            if (!scenarioKey) return;
+            
+            const scenario = SCENARIOS[scenarioKey];
+            if (scenario) {
+                stopPlayback(false);
+                state.entities = JSON.parse(JSON.stringify(scenario.entities));
+                state.drawings = JSON.parse(JSON.stringify(scenario.drawings));
+                state.selected = null;
+                state.playbackComplete = false;
+                state.playbackTime = 0;
+                state.zoom = 1;
+                state.panX = 0;
+                state.panY = 0;
+                state.history = [];
+                state.historyIndex = -1;
+                saveState();
+                document.getElementById('zoomDisplay').textContent = '100%';
+                draw();
+            }
+            // Reset dropdown to placeholder
+            e.target.value = '';
         });
 
         document.getElementById('modalCancel').addEventListener('click', () => modal.classList.remove('active'));
