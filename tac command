@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TOC Command</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      min-height: 100vh;
+    }
+    
+    /* Header */
+    .header {
+      background: #16213e;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #e94560;
+    }
+    .header h1 {
+      font-size: 20px;
+      color: #e94560;
+      font-weight: 700;
+    }
+    .op-code {
+      background: #0f3460;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 18px;
+      letter-spacing: 2px;
+      color: #00ff88;
+    }
+    
+    /* Tabs */
+    .tabs {
+      display: flex;
+      background: #16213e;
+    }
+    .tab {
+      flex: 1;
+      padding: 14px;
+      text-align: center;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+    .tab:hover { background: #1a1a2e; }
+    .tab.active {
+      border-bottom-color: #e94560;
+      background: #1a1a2e;
+      color: #e94560;
+    }
+    
+    /* Panels */
+    .panel {
+      display: none;
+      padding: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .panel.active { display: block; }
+    
+    /* Forms */
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #ccc;
+    }
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #0f3460;
+      border-radius: 8px;
+      background: #16213e;
+      color: #fff;
+      font-size: 16px;
+    }
+    .form-group input:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #e94560;
+    }
+    .form-group textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    
+    /* Photo upload */
+    .photo-upload {
+      border: 2px dashed #0f3460;
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .photo-upload:hover {
+      border-color: #e94560;
+      background: rgba(233, 69, 96, 0.1);
+    }
+    .photo-upload input { display: none; }
+    .photo-upload-icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+    }
+    
+    /* Photo previews */
+    .photo-previews {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .photo-preview {
+      position: relative;
+      width: 120px;
+      height: 120px;
+    }
+    .photo-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 2px solid #0f3460;
+    }
+    .photo-preview .remove {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      width: 24px;
+      height: 24px;
+      background: #e94560;
+      border: none;
+      border-radius: 50%;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 24px;
+    }
+    
+    /* Buttons */
+    .btn {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: #e94560;
+      color: #fff;
+    }
+    .btn-primary:hover { background: #ff6b6b; }
+    .btn-danger {
+      background: #dc3545;
+      color: #fff;
+    }
+    .btn-danger:hover { background: #c82333; }
+    .btn-success {
+      background: #28a745;
+      color: #fff;
+    }
+    
+    /* Grid layout */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+    
+    /* Section card */
+    .card {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card h3 {
+      margin-bottom: 15px;
+      color: #e94560;
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    /* Map */
+    #command-map {
+      height: 500px;
+      border-radius: 12px;
+      border: 2px solid #0f3460;
+    }
+    
+    /* Operator list */
+    .operator-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .operator-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      background: #1a1a2e;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .operator-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 12px;
+      background: #00ff88;
+      animation: pulse 2s infinite;
+    }
+    .operator-dot.offline { background: #666; animation: none; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .operator-info { flex: 1; }
+    .operator-name { font-weight: 600; }
+    .operator-callsign { color: #888; font-size: 14px; }
+    
+    /* Status bar */
+    .status-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #16213e;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 2px solid #0f3460;
+    }
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #00ff88;
+    }
+    .status-dot.disconnected { background: #e94560; }
+    
+    /* Mission active state */
+    .mission-active {
+      background: rgba(0, 255, 136, 0.1);
+      border: 2px solid #00ff88;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .mission-active h3 {
+      color: #00ff88;
+      margin-bottom: 10px;
+    }
+    
+    /* Join code display */
+    .join-code-display {
+      text-align: center;
+      padding: 30px;
+      background: #0f3460;
+      border-radius: 12px;
+      margin: 20px 0;
+    }
+    .join-code-display .code {
+      font-size: 48px;
+      font-family: monospace;
+      letter-spacing: 8px;
+      color: #00ff88;
+      margin: 20px 0;
+    }
+    .join-code-display p {
+      color: #888;
+    }
+
+    /* Loading overlay */
+    .loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    .loading.hidden { display: none; }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #0f3460;
+      border-top-color: #e94560;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+  </div>
+
+  <header class="header">
+    <h1>🎯 TOC COMMAND</h1>
+    <div class="op-code" id="header-code">NO ACTIVE OP</div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-panel="briefing">Mission Briefing</div>
+    <div class="tab" data-panel="map">Live Map</div>
+  </div>
+
+  <!-- Briefing Panel -->
+  <div class="panel active" id="panel-briefing">
+    <div id="no-mission">
+      <div class="card">
+        <h3>Create New Operation</h3>
+        
+        <div class="form-group">
+          <label>Operation Name</label>
+          <input type="text" id="op-name" placeholder="e.g., Operation Thunderbolt">
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Target Address</label>
+            <input type="text" id="op-address" placeholder="123 Main St, City, State">
+          </div>
+          <div class="form-group">
+            <label>Target Coordinates (optional)</label>
+            <input type="text" id="op-coords" placeholder="40.7128, -74.0060">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Operation Description / Instructions</label>
+          <textarea id="op-description" placeholder="Enter mission details, objectives, ROE, etc."></textarea>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>📸 Suspect Photos</h3>
+          <div class="photo-upload" id="suspect-upload">
+            <input type="file" accept="image/*" multiple>
+            <div class="photo-upload-icon">👤</div>
+            <div>Tap to upload suspect photos</div>
+          </div>
+          <div class="photo-previews" id="suspect-previews"></div>
+        </div>
+
+        <div class="card">
+          <h3>🏠 Target Location Photos</h3>
+          <div class="photo-upload" id="target-upload">
+            <input type="file" accept="image/*" multiple>
+            <div class="photo-upload-icon">📍</div>
+            <div>Tap to upload location photos</div>
+          </div>
+          <div class="photo-previews" id="target-previews"></div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="create-op" style="width: 100%; padding: 18px; font-size: 18px;">
+        🚀 CREATE OPERATION
+      </button>
+    </div>
+
+    <div id="active-mission" style="display: none;">
+      <div class="mission-active">
+        <h3>🟢 OPERATION ACTIVE</h3>
+        <p id="active-op-name" style="font-size: 24px; font-weight: bold;"></p>
+      </div>
+
+      <div class="join-code-display">
+        <p>Share this code with operators:</p>
+        <div class="code" id="join-code"></div>
+        <p>Or send them the operator link</p>
+        <button class="btn btn-primary" id="copy-link" style="margin-top: 15px;">📋 Copy Operator Link</button>
+      </div>
+
+      <div class="card">
+        <h3>Mission Details</h3>
+        <p><strong>Address:</strong> <span id="active-address"></span></p>
+        <p style="margin-top: 10px;"><strong>Description:</strong></p>
+        <p id="active-description" style="white-space: pre-wrap; color: #ccc;"></p>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Suspect Photos</h3>
+          <div class="photo-previews" id="active-suspect-photos"></div>
+        </div>
+        <div class="card">
+          <h3>Target Photos</h3>
+          <div class="photo-previews" id="active-target-photos"></div>
+        </div>
+      </div>
+
+      <button class="btn btn-danger" id="end-op" style="width: 100%; padding: 18px; font-size: 18px;">
+        ⏹️ END OPERATION
+      </button>
+    </div>
+  </div>
+
+  <!-- Map Panel -->
+  <div class="panel" id="panel-map">
+    <div class="grid-2">
+      <div class="card">
+        <h3>Live Operator Map</h3>
+        <div id="command-map"></div>
+      </div>
+      <div class="card">
+        <h3>Connected Operators (<span id="operator-count">0</span>)</h3>
+        <div class="operator-list" id="operator-list">
+          <p style="color: #666; text-align: center; padding: 20px;">No operators connected</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-indicator">
+      <div class="status-dot" id="connection-dot"></div>
+      <span id="connection-status">Connecting...</span>
+    </div>
+    <div id="operator-summary">0 operators online</div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+    import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, deleteDoc, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+    import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js';
+
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCVPfcwZeliu4mwm26xa1mi421P8NGKp1I",
+      authDomain: "tac-ops-60d32.firebaseapp.com",
+      projectId: "tac-ops-60d32",
+      storageBucket: "tac-ops-60d32.firebasestorage.app",
+      messagingSenderId: "845190518284",
+      appId: "1:845190518284:web:ac9bd75173b348fd28c029"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    // State
+    let currentOpCode = null;
+    let map = null;
+    let operatorMarkers = {};
+    let targetMarker = null;
+    let suspectPhotos = [];
+    let targetPhotos = [];
+    let unsubscribeOperators = null;
+
+    // Generate 6-character op code
+    function generateOpCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 6; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+      }
+      return code;
+    }
+
+    // Initialize map
+    function initMap() {
+      if (map) return;
+      
+      map = L.map('command-map').setView([39.8283, -98.5795], 4);
+      
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Esri'
+      }).addTo(map);
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
+        attribution: ''
+      }).addTo(map);
+    }
+
+    // Photo upload handling
+    function setupPhotoUpload(uploadEl, previewsEl, photoArray) {
+      const input = uploadEl.querySelector('input');
+      
+      uploadEl.addEventListener('click', () => input.click());
+      
+      input.addEventListener('change', (e) => {
+        Array.from(e.target.files).forEach(file => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            photoArray.push({ data: e.target.result, file });
+            renderPhotoPreviews(previewsEl, photoArray);
+          };
+          reader.readAsDataURL(file);
+        });
+        input.value = '';
+      });
+    }
+
+    function renderPhotoPreviews(container, photoArray) {
+      container.innerHTML = photoArray.map((photo, i) => `
+        <div class="photo-preview">
+          <img src="${photo.data || photo.url}" alt="Photo ${i+1}">
+          <button class="remove" data-index="${i}">&times;</button>
+        </div>
+      `).join('');
+
+      container.querySelectorAll('.remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const index = parseInt(btn.dataset.index);
+          photoArray.splice(index, 1);
+          renderPhotoPreviews(container, photoArray);
+        });
+      });
+    }
+
+    // Upload photos to Firebase Storage
+    async function uploadPhotos(photos, opCode, type) {
+      const urls = [];
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i];
+        if (photo.url) {
+          urls.push(photo.url);
+          continue;
+        }
+        const storageRef = ref(storage, `operations/${opCode}/${type}/${Date.now()}_${i}.jpg`);
+        const response = await fetch(photo.data);
+        const blob = await response.blob();
+        await uploadBytes(storageRef, blob);
+        const url = await getDownloadURL(storageRef);
+        urls.push(url);
+      }
+      return urls;
+    }
+
+    // Create operation
+    async function createOperation() {
+      const name = document.getElementById('op-name').value.trim();
+      const address = document.getElementById('op-address').value.trim();
+      const coords = document.getElementById('op-coords').value.trim();
+      const description = document.getElementById('op-description').value.trim();
+
+      if (!name) {
+        alert('Please enter an operation name');
+        return;
+      }
+
+      document.getElementById('loading').classList.remove('hidden');
+
+      try {
+        const opCode = generateOpCode();
+        
+        // Upload photos
+        const suspectUrls = await uploadPhotos(suspectPhotos, opCode, 'suspects');
+        const targetUrls = await uploadPhotos(targetPhotos, opCode, 'targets');
+
+        // Parse coordinates if provided
+        let lat = null, lng = null;
+        if (coords) {
+          const parts = coords.split(',').map(s => parseFloat(s.trim()));
+          if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+            lat = parts[0];
+            lng = parts[1];
+          }
+        }
+
+        // Save to Firestore
+        await setDoc(doc(db, 'operations', opCode), {
+          name,
+          address,
+          description,
+          lat,
+          lng,
+          suspectPhotos: suspectUrls,
+          targetPhotos: targetUrls,
+          createdAt: serverTimestamp(),
+          active: true
+        });
+
+        currentOpCode = opCode;
+        localStorage.setItem('currentOpCode', opCode);
+        showActiveMission(opCode, { name, address, description, suspectPhotos: suspectUrls, targetPhotos: targetUrls, lat, lng });
+        subscribeToOperators(opCode);
+
+      } catch (error) {
+        console.error('Error creating operation:', error);
+        alert('Error creating operation: ' + error.message);
+      }
+
+      document.getElementById('loading').classList.add('hidden');
+    }
+
+    // Show active mission UI
+    function showActiveMission(opCode, data) {
+      document.getElementById('no-mission').style.display = 'none';
+      document.getElementById('active-mission').style.display = 'block';
+      document.getElementById('header-code').textContent = opCode;
+      document.getElementById('join-code').textContent = opCode;
+      document.getElementById('active-op-name').textContent = data.name;
+      document.getElementById('active-address').textContent = data.address || 'Not specified';
+      document.getElementById('active-description').textContent = data.description || 'No description';
+
+      // Show photos
+      const suspectContainer = document.getElementById('active-suspect-photos');
+      const targetContainer = document.getElementById('active-target-photos');
+      
+      suspectContainer.innerHTML = (data.suspectPhotos || []).map(url => `
+        <div class="photo-preview"><img src="${url}" alt="Suspect"></div>
+      `).join('') || '<p style="color:#666">No photos</p>';
+      
+      targetContainer.innerHTML = (data.targetPhotos || []).map(url => `
+        <div class="photo-preview"><img src="${url}" alt="Target"></div>
+      `).join('') || '<p style="color:#666">No photos</p>';
+
+      // Set map to target location
+      if (data.lat && data.lng) {
+        map.setView([data.lat, data.lng], 16);
+        if (targetMarker) map.removeLayer(targetMarker);
+        targetMarker = L.marker([data.lat, data.lng], {
+          icon: L.divIcon({
+            className: 'target-marker',
+            html: '<div style="background:#e94560;width:20px;height:20px;border-radius:50%;border:3px solid #fff;"></div>',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+          })
+        }).addTo(map).bindPopup('<b>TARGET</b><br>' + (data.address || ''));
+      }
+
+      updateConnectionStatus(true);
+    }
+
+    // Subscribe to operator locations
+    function subscribeToOperators(opCode) {
+      if (unsubscribeOperators) unsubscribeOperators();
+
+      unsubscribeOperators = onSnapshot(
+        collection(db, 'operations', opCode, 'operators'),
+        (snapshot) => {
+          const operators = [];
+          snapshot.forEach(doc => {
+            operators.push({ id: doc.id, ...doc.data() });
+          });
+          updateOperatorDisplay(operators);
+        }
+      );
+    }
+
+    // Update operator markers and list
+    function updateOperatorDisplay(operators) {
+      const list = document.getElementById('operator-list');
+      const count = document.getElementById('operator-count');
+      const summary = document.getElementById('operator-summary');
+
+      // Filter to recently active operators (last 2 minutes)
+      const now = Date.now();
+      const activeOps = operators.filter(op => {
+        const lastUpdate = op.lastUpdate?.toDate?.() || new Date(op.lastUpdate);
+        return (now - lastUpdate.getTime()) < 120000;
+      });
+
+      count.textContent = activeOps.length;
+      summary.textContent = `${activeOps.length} operator${activeOps.length !== 1 ? 's' : ''} online`;
+
+      if (activeOps.length === 0) {
+        list.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No operators connected</p>';
+      } else {
+        list.innerHTML = activeOps.map(op => `
+          <div class="operator-item">
+            <div class="operator-dot"></div>
+            <div class="operator-info">
+              <div class="operator-name">${op.name || 'Unknown'}</div>
+              <div class="operator-callsign">${op.callsign || op.id}</div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Update map markers
+      // Remove old markers
+      Object.keys(operatorMarkers).forEach(id => {
+        if (!activeOps.find(op => op.id === id)) {
+          map.removeLayer(operatorMarkers[id]);
+          delete operatorMarkers[id];
+        }
+      });
+
+      // Update/add markers
+      activeOps.forEach(op => {
+        if (!op.lat || !op.lng) return;
+
+        const color = op.color || '#00ff88';
+        
+        if (operatorMarkers[op.id]) {
+          operatorMarkers[op.id].setLatLng([op.lat, op.lng]);
+        } else {
+          operatorMarkers[op.id] = L.marker([op.lat, op.lng], {
+            icon: L.divIcon({
+              className: 'operator-marker',
+              html: `<div style="background:${color};width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5);"></div>`,
+              iconSize: [16, 16],
+              iconAnchor: [8, 8]
+            })
+          }).addTo(map).bindPopup(`<b>${op.callsign || op.name || 'Operator'}</b>`);
+        }
+      });
+
+      // Fit map to show all operators
+      if (activeOps.length > 0 && Object.keys(operatorMarkers).length > 0) {
+        const group = L.featureGroup(Object.values(operatorMarkers));
+        if (targetMarker) group.addLayer(targetMarker);
+        // Only fit bounds if user hasn't manually zoomed
+      }
+    }
+
+    // End operation
+    async function endOperation() {
+      if (!confirm('Are you sure you want to end this operation?')) return;
+
+      document.getElementById('loading').classList.remove('hidden');
+
+      try {
+        await updateDoc(doc(db, 'operations', currentOpCode), {
+          active: false,
+          endedAt: serverTimestamp()
+        });
+
+        if (unsubscribeOperators) unsubscribeOperators();
+        
+        currentOpCode = null;
+        localStorage.removeItem('currentOpCode');
+        
+        // Reset UI
+        document.getElementById('no-mission').style.display = 'block';
+        document.getElementById('active-mission').style.display = 'none';
+        document.getElementById('header-code').textContent = 'NO ACTIVE OP';
+        document.getElementById('op-name').value = '';
+        document.getElementById('op-address').value = '';
+        document.getElementById('op-coords').value = '';
+        document.getElementById('op-description').value = '';
+        suspectPhotos = [];
+        targetPhotos = [];
+        document.getElementById('suspect-previews').innerHTML = '';
+        document.getElementById('target-previews').innerHTML = '';
+
+        // Clear map
+        Object.values(operatorMarkers).forEach(m => map.removeLayer(m));
+        operatorMarkers = {};
+        if (targetMarker) {
+          map.removeLayer(targetMarker);
+          targetMarker = null;
+        }
+
+      } catch (error) {
+        console.error('Error ending operation:', error);
+        alert('Error ending operation: ' + error.message);
+      }
+
+      document.getElementById('loading').classList.add('hidden');
+    }
+
+    // Copy operator link
+    function copyOperatorLink() {
+      const url = window.location.href.replace('toc-command.html', 'toc-operator.html') + '?code=' + currentOpCode;
+      navigator.clipboard.writeText(url).then(() => {
+        alert('Link copied to clipboard!');
+      });
+    }
+
+    // Update connection status
+    function updateConnectionStatus(connected) {
+      const dot = document.getElementById('connection-dot');
+      const status = document.getElementById('connection-status');
+      
+      if (connected) {
+        dot.classList.remove('disconnected');
+        status.textContent = 'Connected';
+      } else {
+        dot.classList.add('disconnected');
+        status.textContent = 'Disconnected';
+      }
+    }
+
+    // Check for existing operation on load
+    async function checkExistingOperation() {
+      const savedCode = localStorage.getItem('currentOpCode');
+      if (!savedCode) {
+        document.getElementById('loading').classList.add('hidden');
+        return;
+      }
+
+      try {
+        const docSnap = await getDoc(doc(db, 'operations', savedCode));
+        if (docSnap.exists() && docSnap.data().active) {
+          currentOpCode = savedCode;
+          showActiveMission(savedCode, docSnap.data());
+          subscribeToOperators(savedCode);
+        } else {
+          localStorage.removeItem('currentOpCode');
+        }
+      } catch (error) {
+        console.error('Error checking operation:', error);
+        localStorage.removeItem('currentOpCode');
+      }
+
+      document.getElementById('loading').classList.add('hidden');
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+        
+        if (tab.dataset.panel === 'map') {
+          setTimeout(() => map.invalidateSize(), 100);
+        }
+      });
+    });
+
+    // Event listeners
+    document.getElementById('create-op').addEventListener('click', createOperation);
+    document.getElementById('end-op').addEventListener('click', endOperation);
+    document.getElementById('copy-link').addEventListener('click', copyOperatorLink);
+
+    // Setup photo uploads
+    setupPhotoUpload(
+      document.getElementById('suspect-upload'),
+      document.getElementById('suspect-previews'),
+      suspectPhotos
+    );
+    setupPhotoUpload(
+      document.getElementById('target-upload'),
+      document.getElementById('target-previews'),
+      targetPhotos
+    );
+
+    // Initialize
+    initMap();
+    checkExistingOperation();
+    updateConnectionStatus(true);
+  </script>
+</body>
+</html>
