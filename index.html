@@ -247,6 +247,7 @@ function perpDist(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,len=dx*dx+dy*dy;if(!len)ret
 
 function lineInt(p1,p2,p3,p4){const d=(p4.y-p3.y)*(p2.x-p1.x)-(p4.x-p3.x)*(p2.y-p1.y);if(Math.abs(d)<0.0001)return null;const ua=((p4.x-p3.x)*(p1.y-p3.y)-(p4.y-p3.y)*(p1.x-p3.x))/d,ub=((p2.x-p1.x)*(p1.y-p3.y)-(p2.y-p1.y)*(p1.x-p3.x))/d;if(ua>=0&&ua<=1&&ub>=0&&ub<=1)return{x:p1.x+ua*(p2.x-p1.x),y:p1.y+ua*(p2.y-p1.y)};return null;}
 function wallHit(x1,y1,x2,y2){let hit=null,best=Infinity;for(const e of S.entities){if(e.type===E.WALL){const h=lineInt({x:x1,y:y1},{x:x2,y:y2},{x:e.x1,y:e.y1},{x:e.x2,y:e.y2});if(h){const d=Math.hypot(h.x-x1,h.y-y1);if(d<best&&d>1){best=d;hit=h;}}}}return hit;}
+function linesOverlap(ax1,ay1,ax2,ay2,bx1,by1,bx2,by2){const tol=5;const aAng=Math.atan2(ay2-ay1,ax2-ax1);const bAng=Math.atan2(by2-by1,bx2-bx1);let angDiff=Math.abs(aAng-bAng);if(angDiff>Math.PI)angDiff=2*Math.PI-angDiff;if(angDiff>0.1&&angDiff<Math.PI-0.1)return false;const distToLine=(px,py,lx1,ly1,lx2,ly2)=>{const len=Math.hypot(lx2-lx1,ly2-ly1);if(len<1)return Math.hypot(px-lx1,py-ly1);const t=Math.max(0,Math.min(1,((px-lx1)*(lx2-lx1)+(py-ly1)*(ly2-ly1))/(len*len)));return Math.hypot(px-(lx1+t*(lx2-lx1)),py-(ly1+t*(ly2-ly1)));};if(distToLine(bx1,by1,ax1,ay1,ax2,ay2)>tol&&distToLine(bx2,by2,ax1,ay1,ax2,ay2)>tol)return false;const proj=(px,py,lx1,ly1,lx2,ly2)=>{const len=Math.hypot(lx2-lx1,ly2-ly1);if(len<1)return 0;return((px-lx1)*(lx2-lx1)+(py-ly1)*(ly2-ly1))/(len*len);};const t1=proj(bx1,by1,ax1,ay1,ax2,ay2),t2=proj(bx2,by2,ax1,ay1,ax2,ay2);const minT=Math.min(t1,t2),maxT=Math.max(t1,t2);return maxT>-0.1&&minT<1.1;}
 function wallHitForPath(x1,y1,x2,y2){let hit=null,best=Infinity;for(const e of S.entities){if(e.type===E.WALL){const h=lineInt({x:x1,y:y1},{x:x2,y:y2},{x:e.x1,y:e.y1},{x:e.x2,y:e.y2});if(h){const d=Math.hypot(h.x-x1,h.y-y1);if(d<best&&d>1){best=d;hit=h;}}}}return hit;}
 function eraseAt(x,y){const gs=S.gridSize;const gx=Math.floor(x/gs)*gs;const gy=Math.floor(y/gs)*gs;for(let i=S.drawings.length-1;i>=0;i--){const d=S.drawings[i];if(d.type==='pen'&&d.points){for(const p of d.points){if(p.x>=gx&&p.x<gx+gs&&p.y>=gy&&p.y<gy+gs){S.drawings.splice(i,1);break;}}}}for(let i=S.entities.length-1;i>=0;i--){const e=S.entities[i];if([E.WALL,E.DOOR_C,E.DOOR_O].includes(e.type)){const hit=lineInt({x:gx,y:gy},{x:gx+gs,y:gy},{x:e.x1,y:e.y1},{x:e.x2,y:e.y2})||lineInt({x:gx+gs,y:gy},{x:gx+gs,y:gy+gs},{x:e.x1,y:e.y1},{x:e.x2,y:e.y2})||lineInt({x:gx+gs,y:gy+gs},{x:gx,y:gy+gs},{x:e.x1,y:e.y1},{x:e.x2,y:e.y2})||lineInt({x:gx,y:gy+gs},{x:gx,y:gy},{x:e.x1,y:e.y1},{x:e.x2,y:e.y2});const inside=(e.x1>=gx&&e.x1<gx+gs&&e.y1>=gy&&e.y1<gy+gs)||(e.x2>=gx&&e.x2<gx+gs&&e.y2>=gy&&e.y2<gy+gs);if(hit||inside){const len=Math.hypot(e.x2-e.x1,e.y2-e.y1);if(len<1)continue;const dx=(e.x2-e.x1)/len;const dy=(e.y2-e.y1)/len;let tMin=0,tMax=1;const clips=[[gx,gx+gs,dx,e.x1],[gy,gy+gs,dy,e.y1]];for(let c=0;c<2;c++){const lo=clips[c][0],hi=clips[c][1],d=clips[c][2],o=clips[c][3];if(Math.abs(d)>0.001){const t1=(lo-o)/(d*len),t2=(hi-o)/(d*len);const tEnter=Math.min(t1,t2),tExit=Math.max(t1,t2);tMin=Math.max(tMin,tEnter);tMax=Math.min(tMax,tExit);}}if(tMin<tMax){const newSegs=[];if(tMin>0.01){newSegs.push({id:Date.now()+Math.random(),type:e.type,x1:e.x1,y1:e.y1,x2:e.x1+tMin*len*dx,y2:e.y1+tMin*len*dy,swing:e.swing});}if(tMax<0.99){newSegs.push({id:Date.now()+Math.random()+1,type:e.type,x1:e.x1+tMax*len*dx,y1:e.y1+tMax*len*dy,x2:e.x2,y2:e.y2,swing:e.swing});}S.entities.splice(i,1);for(const seg of newSegs){S.entities.push(seg);}}}}if([E.OP,E.THREAT,E.CIV].includes(e.type)){const ex=e.cx!==undefined?e.cx:e.x;const ey=e.cy!==undefined?e.cy:e.y;if(ex>=gx&&ex<gx+gs&&ey>=gy&&ey<gy+gs){S.entities.splice(i,1);}}}}
 function castRay(ox,oy,ang,maxD){const ex=ox+Math.cos(ang)*maxD,ey=oy+Math.sin(ang)*maxD;let cd=maxD;for(const e of S.entities){if(e.type===E.WALL||e.type===E.DOOR_C){const h=lineInt({x:ox,y:oy},{x:ex,y:ey},{x:e.x1,y:e.y1},{x:e.x2,y:e.y2});if(h){const d=Math.hypot(h.x-ox,h.y-oy);if(d<cd)cd=d;}}}return cd;}
@@ -337,7 +338,7 @@ canvas.addEventListener('mouseup',e=>{
 if(S.draggingLookPoint){const lp=S.draggingLookPoint;if(!lp.item.lookPoints)lp.item.lookPoints=[];lp.item.lookPoints.push({distance:lp.pathDist,direction:lp.currentDir});lp.item.lookPoints.sort((a,b)=>a.distance-b.distance);save();S.draggingLookPoint=null;S.addingLookPoint=false;draw();return;}
 if(S.panning){S.panning=false;canvas.classList.remove('cursor-grabbing');return;}
 if(S.erasing){S.erasing=false;S.drawing=false;S.path=[];save();draw();return;}
-if(S.drawing){const wp=s2w(...Object.values(mPos(e))),sn={x:snap(wp.x),y:snap(wp.y)};if(S.tool==='pen'&&S.path.length>1){S.drawings.push({id:Date.now(),type:'pen',points:[...S.path],color:S.drawColor,size:S.strokeSize});save();}else if(S.tool==='path'&&S.selected&&S.path.length>1){const raw=[{x:S.selected.item.x,y:S.selected.item.y},...S.path],simp=simplify(raw,5);S.selected.item.path=simp.length>=3?smooth(simp,3):simp;S.selected.item.lookPoints=[];S.selected.item.cx=S.selected.item.x;S.selected.item.cy=S.selected.item.y;S.selected.item.cd=S.selected.item.direction;save();}else if(['wall','door-closed','door-open'].includes(S.tool)&&S.drawStart&&S.path.length){const end=S.path[0];if(Math.hypot(end.x-S.drawStart.x,end.y-S.drawStart.y)>=10){S.entities.push({id:Date.now(),type:S.tool,x1:S.drawStart.x,y1:S.drawStart.y,x2:end.x,y2:end.y,swing:'in-left'});save();}}S.drawing=false;S.drawStart=null;S.path=[];S.pathBlocked=false;}
+if(S.drawing){const wp=s2w(...Object.values(mPos(e))),sn={x:snap(wp.x),y:snap(wp.y)};if(S.tool==='pen'&&S.path.length>1){S.drawings.push({id:Date.now(),type:'pen',points:[...S.path],color:S.drawColor,size:S.strokeSize});save();}else if(S.tool==='path'&&S.selected&&S.path.length>1){const raw=[{x:S.selected.item.x,y:S.selected.item.y},...S.path],simp=simplify(raw,5);S.selected.item.path=simp.length>=3?smooth(simp,3):simp;S.selected.item.lookPoints=[];S.selected.item.cx=S.selected.item.x;S.selected.item.cy=S.selected.item.y;S.selected.item.cd=S.selected.item.direction;save();}else if(['wall','door-closed','door-open'].includes(S.tool)&&S.drawStart&&S.path.length){const end=S.path[0];if(Math.hypot(end.x-S.drawStart.x,end.y-S.drawStart.y)>=10){if(S.tool==='wall'){for(let i=S.entities.length-1;i>=0;i--){const e=S.entities[i];if(e.type===E.DOOR_C||e.type===E.DOOR_O){const overlap=linesOverlap(S.drawStart.x,S.drawStart.y,end.x,end.y,e.x1,e.y1,e.x2,e.y2);if(overlap)S.entities.splice(i,1);}}}S.entities.push({id:Date.now(),type:S.tool,x1:S.drawStart.x,y1:S.drawStart.y,x2:end.x,y2:end.y,swing:'in-left'});save();}}S.drawing=false;S.drawStart=null;S.path=[];S.pathBlocked=false;}
 if(S.selected&&S.dragOff){save();S.dragOff=null;}draw();});
 
 canvas.addEventListener('wheel',e=>{e.preventDefault();const sp=mPos(e),wb=s2w(sp.x,sp.y);S.zoom=Math.max(0.2,Math.min(5,S.zoom*(e.deltaY>0?0.9:1.1)));const wa=s2w(sp.x,sp.y);S.panX+=(wa.x-wb.x)*S.zoom;S.panY+=(wa.y-wb.y)*S.zoom;draw();},{passive:false});
@@ -392,9 +393,38 @@ const configModal=document.getElementById('configModal');
 const SCRIPT_URL_KEY='waldo_script_url';
 const DEFAULT_SCRIPT_URL='https://script.google.com/macros/s/AKfycbzjNirThr6zN7QFvunxhkAfWRNC9E3mxEBA4KNcKy-zBCPRLBmT1ASx_MxYIclHcEyGkA/exec';
 
+let mediaRecorder=null;
+let recordedChunks=[];
+let recordedBlob=null;
+
+function startRecording(){
+  recordedChunks=[];
+  const stream=canvas.captureStream(30);
+  mediaRecorder=new MediaRecorder(stream,{mimeType:'video/webm'});
+  mediaRecorder.ondataavailable=e=>{if(e.data.size>0)recordedChunks.push(e.data);};
+  mediaRecorder.onstop=()=>{recordedBlob=new Blob(recordedChunks,{type:'video/webm'});};
+  mediaRecorder.start();
+}
+
+function stopRecording(){
+  return new Promise(resolve=>{
+    if(mediaRecorder&&mediaRecorder.state!=='inactive'){
+      mediaRecorder.onstop=()=>{
+        recordedBlob=new Blob(recordedChunks,{type:'video/webm'});
+        resolve(recordedBlob);
+      };
+      mediaRecorder.stop();
+    }else{
+      resolve(null);
+    }
+  });
+}
+
 document.getElementById('submitBtn').addEventListener('click',()=>{
   submitModal.classList.add('active');
-  document.getElementById('submitStatus').textContent='';
+  document.getElementById('submitStatus').textContent='Draw your solution, then click "Record & Submit"';
+  document.getElementById('submitConfirm').textContent='Record & Submit';
+  recordedBlob=null;
 });
 
 document.getElementById('submitBtn').addEventListener('click',e=>{
@@ -423,42 +453,92 @@ document.getElementById('submitConfirm').addEventListener('click',async()=>{
   const name=document.getElementById('submitterName').value.trim();
   const scenario=document.getElementById('scenarioName').value.trim();
   const status=document.getElementById('submitStatus');
+  const btn=document.getElementById('submitConfirm');
   
   if(!name){status.textContent='Please enter your name';status.style.color='#f44';return;}
   if(!scenario){status.textContent='Please enter a scenario name';status.style.color='#f44';return;}
   
-  const url=localStorage.getItem(SCRIPT_URL_KEY)||DEFAULT_SCRIPT_URL;
+  // Check if there are paths to animate
+  const hasPaths=S.entities.some(e=>e.path&&e.path.length>1)||S.entities.some(e=>e.vtaPending||e.doorOpenPending);
+  if(!hasPaths){status.textContent='Draw paths for operators first';status.style.color='#f44';return;}
   
-  status.textContent='Submitting...';status.style.color='#888';
+  btn.disabled=true;
+  status.textContent='Recording playback...';status.style.color='#888';
   
-  const submission={
-    name:name,
-    scenarioName:scenario,
-    timestamp:new Date().toISOString(),
-    entities:S.entities,
-    drawings:S.drawings
+  // Reset and start recording
+  rewind();
+  await new Promise(r=>setTimeout(r,100));
+  startRecording();
+  
+  // Start playback and wait for it to finish
+  const originalStopPlay=stopPlay;
+  let playbackDone=false;
+  stopPlay=function(done){
+    originalStopPlay(done);
+    if(done)playbackDone=true;
   };
   
-  try{
-    const resp=await fetch(url,{
-      method:'POST',
-      mode:'no-cors',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(submission)
-    });
-    status.textContent='✓ Submitted successfully!';
-    status.style.color='#4CAF50';
-    setTimeout(()=>submitModal.classList.remove('active'),1500);
-  }catch(err){
-    status.textContent='Error: '+err.message;
-    status.style.color='#f44';
+  startPlay();
+  
+  // Wait for playback to complete (max 60 seconds)
+  let waited=0;
+  while(!playbackDone&&waited<60000){
+    await new Promise(r=>setTimeout(r,100));
+    waited+=100;
   }
+  
+  stopPlay=originalStopPlay;
+  
+  // Stop recording
+  status.textContent='Processing video...';
+  const videoBlob=await stopRecording();
+  
+  if(!videoBlob){
+    status.textContent='Recording failed';status.style.color='#f44';
+    btn.disabled=false;
+    return;
+  }
+  
+  // Convert to base64
+  status.textContent='Uploading...';
+  const reader=new FileReader();
+  reader.onload=async()=>{
+    const base64=reader.result.split(',')[1];
+    const url=localStorage.getItem(SCRIPT_URL_KEY)||DEFAULT_SCRIPT_URL;
+    
+    const submission={
+      name:name,
+      scenarioName:scenario,
+      timestamp:new Date().toISOString(),
+      video:base64,
+      entities:S.entities,
+      drawings:S.drawings
+    };
+    
+    try{
+      await fetch(url,{
+        method:'POST',
+        mode:'no-cors',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(submission)
+      });
+      status.textContent='✓ Submitted successfully!';
+      status.style.color='#4CAF50';
+      btn.disabled=false;
+      setTimeout(()=>submitModal.classList.remove('active'),1500);
+    }catch(err){
+      status.textContent='Error: '+err.message;
+      status.style.color='#f44';
+      btn.disabled=false;
+    }
+  };
+  reader.readAsDataURL(videoBlob);
 });
 
 let touchStartDist=0;let touchStartZoom=1;let touchStartPan={x:0,y:0};let touchMidStart={x:0,y:0};let isTwoFingerGesture=false;
 canvas.addEventListener('touchstart',e=>{e.preventDefault();hideContextMenu();if(e.touches.length===2){isTwoFingerGesture=true;const t1=e.touches[0],t2=e.touches[1];touchStartDist=Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY);touchStartZoom=S.zoom;touchStartPan={x:S.panX,y:S.panY};touchMidStart={x:(t1.clientX+t2.clientX)/2,y:(t1.clientY+t2.clientY)/2};return;}isTwoFingerGesture=false;const t=e.touches[0],r=canvas.getBoundingClientRect(),sp={x:t.clientX-r.left,y:t.clientY-r.top},wp=s2w(sp.x,sp.y),sn={x:snap(wp.x),y:snap(wp.y)};if(S.tool==='pan'){S.panning=true;S.panStart={x:t.clientX-S.panX,y:t.clientY-S.panY};return;}if(S.tool==='select'){S.selected=findAt(wp.x,wp.y);if(S.selected){const it=S.selected.item;if(it.x!==undefined)S.dragOff={x:wp.x-it.x,y:wp.y-it.y};if([E.OP,E.THREAT,E.CIV].includes(it.type)){showContextMenu(t.clientX,t.clientY);}}}else if(S.tool==='erase'){S.drawing=true;S.erasing=true;S.path=[wp];}else if(S.tool==='pen'){S.drawing=true;S.path=[wp];}else if(['wall','door-closed','door-open'].includes(S.tool)){S.drawing=true;S.drawStart=sn;S.path=[sn];}else if(S.tool==='path'&&S.selected&&[E.OP,E.THREAT,E.CIV].includes(S.selected.item.type)){S.drawing=true;S.pathBlocked=false;S.path=[wp];}else if(S.tool==='operator'){const n=S.entities.filter(x=>x.type===E.OP).length+1;S.entities.push({id:Date.now(),type:E.OP,x:sn.x,y:sn.y,color:S.opColor,label:String(n),path:[],lookPoints:[],direction:0,fovAngle:S.fovAngle,fovRange:S.fovRange});save();}else if(S.tool==='threat'){S.entities.push({id:Date.now(),type:E.THREAT,x:sn.x,y:sn.y,path:[],lookPoints:[],direction:0,fovAngle:60,fovRange:100});save();}else if(S.tool==='civilian'){S.entities.push({id:Date.now(),type:E.CIV,x:sn.x,y:sn.y,path:[],lookPoints:[],direction:0});save();}draw();},{passive:false});
 canvas.addEventListener('touchmove',e=>{e.preventDefault();if(e.touches.length===2&&isTwoFingerGesture){const t1=e.touches[0],t2=e.touches[1];const currentDist=Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY);const touchMid={x:(t1.clientX+t2.clientX)/2,y:(t1.clientY+t2.clientY)/2};const scale=currentDist/touchStartDist;const newZoom=Math.max(0.2,Math.min(5,touchStartZoom*scale));const panDeltaX=touchMid.x-touchMidStart.x;const panDeltaY=touchMid.y-touchMidStart.y;S.zoom=newZoom;S.panX=touchStartPan.x+panDeltaX;S.panY=touchStartPan.y+panDeltaY;draw();return;}if(e.touches.length!==1)return;const t=e.touches[0],r=canvas.getBoundingClientRect(),sp={x:t.clientX-r.left,y:t.clientY-r.top},wp=s2w(sp.x,sp.y),sn={x:snap(wp.x),y:snap(wp.y)};if(S.panning){S.panX=t.clientX-S.panStart.x;S.panY=t.clientY-S.panStart.y;draw();return;}if(S.erasing){eraseAt(wp.x,wp.y);draw();return;}if(S.drawing){if(S.tool==='pen')S.path.push(wp);else if(S.tool==='path'&&!S.pathBlocked){const last=S.path[S.path.length-1]||S.selected.item;const hit=wallHitForPath(last.x,last.y,wp.x,wp.y);if(hit){S.path.push({x:last.x+(hit.x-last.x)*0.95,y:last.y+(hit.y-last.y)*0.95});S.pathBlocked=true;}else S.path.push(wp);}else if(['wall','door-closed','door-open'].includes(S.tool))S.path=[sn];draw();}if(S.selected&&S.dragOff&&!S.playing){const it=S.selected.item;if(it.x!==undefined){it.x=sn.x;it.y=sn.y;it.cx=sn.x;it.cy=sn.y;}draw();}},{passive:false});
-canvas.addEventListener('touchend',e=>{e.preventDefault();if(e.touches.length===0){isTwoFingerGesture=false;}if(e.touches.length>0)return;if(S.panning){S.panning=false;return;}if(S.erasing){S.erasing=false;S.drawing=false;S.path=[];save();draw();return;}if(S.drawing){if(S.tool==='pen'&&S.path.length>1){S.drawings.push({id:Date.now(),type:'pen',points:[...S.path],color:S.drawColor,size:S.strokeSize});save();}else if(S.tool==='path'&&S.selected&&S.path.length>1){const raw=[{x:S.selected.item.x,y:S.selected.item.y},...S.path],simp=simplify(raw,5);S.selected.item.path=simp.length>=3?smooth(simp,3):simp;S.selected.item.lookPoints=[];save();}else if(['wall','door-closed','door-open'].includes(S.tool)&&S.drawStart&&S.path.length){const end=S.path[0];if(Math.hypot(end.x-S.drawStart.x,end.y-S.drawStart.y)>=10){S.entities.push({id:Date.now(),type:S.tool,x1:S.drawStart.x,y1:S.drawStart.y,x2:end.x,y2:end.y,swing:'in-left'});save();}}S.drawing=false;S.drawStart=null;S.path=[];S.pathBlocked=false;}if(S.selected&&S.dragOff){save();S.dragOff=null;}draw();},{passive:false});
+canvas.addEventListener('touchend',e=>{e.preventDefault();if(e.touches.length===0){isTwoFingerGesture=false;}if(e.touches.length>0)return;if(S.panning){S.panning=false;return;}if(S.erasing){S.erasing=false;S.drawing=false;S.path=[];save();draw();return;}if(S.drawing){if(S.tool==='pen'&&S.path.length>1){S.drawings.push({id:Date.now(),type:'pen',points:[...S.path],color:S.drawColor,size:S.strokeSize});save();}else if(S.tool==='path'&&S.selected&&S.path.length>1){const raw=[{x:S.selected.item.x,y:S.selected.item.y},...S.path],simp=simplify(raw,5);S.selected.item.path=simp.length>=3?smooth(simp,3):simp;S.selected.item.lookPoints=[];save();}else if(['wall','door-closed','door-open'].includes(S.tool)&&S.drawStart&&S.path.length){const end=S.path[0];if(Math.hypot(end.x-S.drawStart.x,end.y-S.drawStart.y)>=10){if(S.tool==='wall'){for(let i=S.entities.length-1;i>=0;i--){const ent=S.entities[i];if(ent.type===E.DOOR_C||ent.type===E.DOOR_O){const overlap=linesOverlap(S.drawStart.x,S.drawStart.y,end.x,end.y,ent.x1,ent.y1,ent.x2,ent.y2);if(overlap)S.entities.splice(i,1);}}}S.entities.push({id:Date.now(),type:S.tool,x1:S.drawStart.x,y1:S.drawStart.y,x2:end.x,y2:end.y,swing:'in-left'});save();}}S.drawing=false;S.drawStart=null;S.path=[];S.pathBlocked=false;}if(S.selected&&S.dragOff){save();S.dragOff=null;}draw();},{passive:false});
 
 save();draw();
 </script>
