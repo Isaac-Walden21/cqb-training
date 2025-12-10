@@ -144,6 +144,40 @@
             <button id="saveBtn">Save</button>
             <button id="loadBtn">Load</button>
             <select id="scenarioSelect"><option value="">Scenarios</option><option value="kpd-shoothouse">KPD Shoothouse</option><option value="small-house">Small House</option><option value="l-corridor">L-Corridor</option><option value="apartment">Apartment</option><option value="warehouse">Warehouse</option></select>
+            <div class="divider"></div>
+            <button id="submitBtn" style="background:#4CAF50;">📤 Submit</button>
+        </div>
+    </div>
+    <div class="modal" id="submitModal">
+        <div class="modal-content">
+            <h2>Submit Your Solution</h2>
+            <div style="margin-bottom:10px;">
+                <label style="display:block;margin-bottom:5px;color:#ccc;">Your Name:</label>
+                <input type="text" id="submitterName" style="width:100%;padding:8px;border-radius:4px;border:1px solid #444;background:#2a2a2a;color:#fff;" placeholder="Enter your name">
+            </div>
+            <div style="margin-bottom:10px;">
+                <label style="display:block;margin-bottom:5px;color:#ccc;">Scenario Name:</label>
+                <input type="text" id="scenarioName" style="width:100%;padding:8px;border-radius:4px;border:1px solid #444;background:#2a2a2a;color:#fff;" placeholder="e.g., Room Clear Drill 1">
+            </div>
+            <div class="btn-row">
+                <button class="btn-secondary" id="submitCancel">Cancel</button>
+                <button class="btn-primary" id="submitConfirm" style="background:#4CAF50;">Submit</button>
+            </div>
+            <p id="submitStatus" style="margin-top:10px;text-align:center;color:#888;"></p>
+        </div>
+    </div>
+    <div class="modal" id="configModal">
+        <div class="modal-content">
+            <h2>⚙️ Instructor Settings</h2>
+            <div style="margin-bottom:10px;">
+                <label style="display:block;margin-bottom:5px;color:#ccc;">Google Apps Script URL:</label>
+                <input type="text" id="scriptUrl" style="width:100%;padding:8px;border-radius:4px;border:1px solid #444;background:#2a2a2a;color:#fff;" placeholder="https://script.google.com/macros/s/...">
+            </div>
+            <p style="color:#888;font-size:12px;">This URL is saved in your browser. Team members need it configured to submit.</p>
+            <div class="btn-row">
+                <button class="btn-secondary" id="configCancel">Cancel</button>
+                <button class="btn-primary" id="configSave">Save</button>
+            </div>
         </div>
     </div>
     <div class="modal" id="modal">
@@ -351,6 +385,75 @@ document.getElementById('toggleDoorState').addEventListener('click',()=>{if(S.se
 document.getElementById('deleteDoor').addEventListener('click',()=>{if(S.selected&&[E.DOOR_C,E.DOOR_O].includes(S.selected.item.type)){S.entities.splice(S.selected.idx,1);S.selected=null;save();draw();hideContextMenu();}});
 
 document.addEventListener('click',e=>{if(S.contextMenuOpen&&!ctxMenu.contains(e.target)&&!doorCtxMenu.contains(e.target)&&e.target!==canvas){hideContextMenu();}});
+
+// Submit functionality
+const submitModal=document.getElementById('submitModal');
+const configModal=document.getElementById('configModal');
+const SCRIPT_URL_KEY='waldo_script_url';
+const DEFAULT_SCRIPT_URL='https://script.google.com/macros/s/AKfycbzjNirThr6zN7QFvunxhkAfWRNC9E3mxEBA4KNcKy-zBCPRLBmT1ASx_MxYIclHcEyGkA/exec';
+
+document.getElementById('submitBtn').addEventListener('click',()=>{
+  submitModal.classList.add('active');
+  document.getElementById('submitStatus').textContent='';
+});
+
+document.getElementById('submitBtn').addEventListener('click',e=>{
+  if(e.shiftKey){
+    e.stopImmediatePropagation();
+    document.getElementById('scriptUrl').value=localStorage.getItem(SCRIPT_URL_KEY)||DEFAULT_SCRIPT_URL;
+    configModal.classList.add('active');
+  }
+},true);
+
+document.getElementById('submitCancel').addEventListener('click',()=>submitModal.classList.remove('active'));
+document.getElementById('configCancel').addEventListener('click',()=>configModal.classList.remove('active'));
+
+document.getElementById('configSave').addEventListener('click',()=>{
+  const url=document.getElementById('scriptUrl').value.trim();
+  if(url){
+    localStorage.setItem(SCRIPT_URL_KEY,url);
+    alert('Script URL saved!');
+  }else{
+    localStorage.removeItem(SCRIPT_URL_KEY);
+  }
+  configModal.classList.remove('active');
+});
+
+document.getElementById('submitConfirm').addEventListener('click',async()=>{
+  const name=document.getElementById('submitterName').value.trim();
+  const scenario=document.getElementById('scenarioName').value.trim();
+  const status=document.getElementById('submitStatus');
+  
+  if(!name){status.textContent='Please enter your name';status.style.color='#f44';return;}
+  if(!scenario){status.textContent='Please enter a scenario name';status.style.color='#f44';return;}
+  
+  const url=localStorage.getItem(SCRIPT_URL_KEY)||DEFAULT_SCRIPT_URL;
+  
+  status.textContent='Submitting...';status.style.color='#888';
+  
+  const submission={
+    name:name,
+    scenarioName:scenario,
+    timestamp:new Date().toISOString(),
+    entities:S.entities,
+    drawings:S.drawings
+  };
+  
+  try{
+    const resp=await fetch(url,{
+      method:'POST',
+      mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(submission)
+    });
+    status.textContent='✓ Submitted successfully!';
+    status.style.color='#4CAF50';
+    setTimeout(()=>submitModal.classList.remove('active'),1500);
+  }catch(err){
+    status.textContent='Error: '+err.message;
+    status.style.color='#f44';
+  }
+});
 
 let touchStartDist=0;let touchStartZoom=1;let touchStartPan={x:0,y:0};let touchMidStart={x:0,y:0};let isTwoFingerGesture=false;
 canvas.addEventListener('touchstart',e=>{e.preventDefault();hideContextMenu();if(e.touches.length===2){isTwoFingerGesture=true;const t1=e.touches[0],t2=e.touches[1];touchStartDist=Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY);touchStartZoom=S.zoom;touchStartPan={x:S.panX,y:S.panY};touchMidStart={x:(t1.clientX+t2.clientX)/2,y:(t1.clientY+t2.clientY)/2};return;}isTwoFingerGesture=false;const t=e.touches[0],r=canvas.getBoundingClientRect(),sp={x:t.clientX-r.left,y:t.clientY-r.top},wp=s2w(sp.x,sp.y),sn={x:snap(wp.x),y:snap(wp.y)};if(S.tool==='pan'){S.panning=true;S.panStart={x:t.clientX-S.panX,y:t.clientY-S.panY};return;}if(S.tool==='select'){S.selected=findAt(wp.x,wp.y);if(S.selected){const it=S.selected.item;if(it.x!==undefined)S.dragOff={x:wp.x-it.x,y:wp.y-it.y};if([E.OP,E.THREAT,E.CIV].includes(it.type)){showContextMenu(t.clientX,t.clientY);}}}else if(S.tool==='erase'){S.drawing=true;S.erasing=true;S.path=[wp];}else if(S.tool==='pen'){S.drawing=true;S.path=[wp];}else if(['wall','door-closed','door-open'].includes(S.tool)){S.drawing=true;S.drawStart=sn;S.path=[sn];}else if(S.tool==='path'&&S.selected&&[E.OP,E.THREAT,E.CIV].includes(S.selected.item.type)){S.drawing=true;S.pathBlocked=false;S.path=[wp];}else if(S.tool==='operator'){const n=S.entities.filter(x=>x.type===E.OP).length+1;S.entities.push({id:Date.now(),type:E.OP,x:sn.x,y:sn.y,color:S.opColor,label:String(n),path:[],lookPoints:[],direction:0,fovAngle:S.fovAngle,fovRange:S.fovRange});save();}else if(S.tool==='threat'){S.entities.push({id:Date.now(),type:E.THREAT,x:sn.x,y:sn.y,path:[],lookPoints:[],direction:0,fovAngle:60,fovRange:100});save();}else if(S.tool==='civilian'){S.entities.push({id:Date.now(),type:E.CIV,x:sn.x,y:sn.y,path:[],lookPoints:[],direction:0});save();}draw();},{passive:false});
