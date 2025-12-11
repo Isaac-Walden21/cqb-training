@@ -145,12 +145,12 @@
             <button id="loadBtn">Load</button>
             <select id="scenarioSelect"><option value="">Scenarios</option><option value="kpd-shoothouse">KPD Shoothouse</option><option value="small-house">Small House</option><option value="l-corridor">L-Corridor</option><option value="apartment">Apartment</option><option value="warehouse">Warehouse</option></select>
             <div class="divider"></div>
-            <button id="submitBtn" style="background:#4CAF50;">📤 Submit</button>
+            <button id="recordBtn" style="background:#e53935;">⏺ Record</button>
         </div>
     </div>
     <div class="modal" id="submitModal">
         <div class="modal-content">
-            <h2>Submit Your Solution</h2>
+            <h2>Submit Your Recording</h2>
             <div style="margin-bottom:10px;">
                 <label style="display:block;margin-bottom:5px;color:#ccc;">Your Name:</label>
                 <input type="text" id="submitterName" style="width:100%;padding:8px;border-radius:4px;border:1px solid #444;background:#2a2a2a;color:#fff;" placeholder="Enter your name">
@@ -387,7 +387,7 @@ document.getElementById('deleteDoor').addEventListener('click',()=>{if(S.selecte
 
 document.addEventListener('click',e=>{if(S.contextMenuOpen&&!ctxMenu.contains(e.target)&&!doorCtxMenu.contains(e.target)&&e.target!==canvas){hideContextMenu();}});
 
-// Submit functionality
+// Recording functionality
 const submitModal=document.getElementById('submitModal');
 const configModal=document.getElementById('configModal');
 const SCRIPT_URL_KEY='waldo_script_url';
@@ -396,14 +396,17 @@ const DEFAULT_SCRIPT_URL='https://script.google.com/macros/s/AKfycbzjNirThr6zN7Q
 let mediaRecorder=null;
 let recordedChunks=[];
 let recordedBlob=null;
+let isRecording=false;
 
 function startRecording(){
   recordedChunks=[];
   const stream=canvas.captureStream(30);
   mediaRecorder=new MediaRecorder(stream,{mimeType:'video/webm'});
   mediaRecorder.ondataavailable=e=>{if(e.data.size>0)recordedChunks.push(e.data);};
-  mediaRecorder.onstop=()=>{recordedBlob=new Blob(recordedChunks,{type:'video/webm'});};
   mediaRecorder.start();
+  isRecording=true;
+  document.getElementById('recordBtn').textContent='⏹ Stop & Submit';
+  document.getElementById('recordBtn').style.background='#4CAF50';
 }
 
 function stopRecording(){
@@ -417,25 +420,31 @@ function stopRecording(){
     }else{
       resolve(null);
     }
+    isRecording=false;
+    document.getElementById('recordBtn').textContent='⏺ Record';
+    document.getElementById('recordBtn').style.background='#e53935';
   });
 }
 
-document.getElementById('submitBtn').addEventListener('click',()=>{
-  submitModal.classList.add('active');
-  document.getElementById('submitStatus').textContent='Draw your solution, then click "Record & Submit"';
-  document.getElementById('submitConfirm').textContent='Record & Submit';
-  recordedBlob=null;
+document.getElementById('recordBtn').addEventListener('click',async()=>{
+  if(!isRecording){
+    startRecording();
+  }else{
+    await stopRecording();
+    submitModal.classList.add('active');
+    document.getElementById('submitStatus').textContent='';
+  }
 });
 
-document.getElementById('submitBtn').addEventListener('click',e=>{
-  if(e.shiftKey){
+document.getElementById('recordBtn').addEventListener('click',e=>{
+  if(e.shiftKey&&!isRecording){
     e.stopImmediatePropagation();
     document.getElementById('scriptUrl').value=localStorage.getItem(SCRIPT_URL_KEY)||DEFAULT_SCRIPT_URL;
     configModal.classList.add('active');
   }
 },true);
 
-document.getElementById('submitCancel').addEventListener('click',()=>submitModal.classList.remove('active'));
+document.getElementById('submitCancel').addEventListener('click',()=>{submitModal.classList.remove('active');recordedBlob=null;});
 document.getElementById('configCancel').addEventListener('click',()=>configModal.classList.remove('active'));
 
 document.getElementById('configSave').addEventListener('click',()=>{
@@ -458,49 +467,14 @@ document.getElementById('submitConfirm').addEventListener('click',async()=>{
   if(!name){status.textContent='Please enter your name';status.style.color='#f44';return;}
   if(!scenario){status.textContent='Please enter a scenario name';status.style.color='#f44';return;}
   
-  // Check if there are paths to animate
-  const hasPaths=S.entities.some(e=>e.path&&e.path.length>1)||S.entities.some(e=>e.vtaPending||e.doorOpenPending);
-  if(!hasPaths){status.textContent='Draw paths for operators first';status.style.color='#f44';return;}
-  
-  btn.disabled=true;
-  status.textContent='Recording playback...';status.style.color='#888';
-  
-  // Reset and start recording
-  rewind();
-  await new Promise(r=>setTimeout(r,100));
-  startRecording();
-  
-  // Start playback and wait for it to finish
-  const originalStopPlay=stopPlay;
-  let playbackDone=false;
-  stopPlay=function(done){
-    originalStopPlay(done);
-    if(done)playbackDone=true;
-  };
-  
-  startPlay();
-  
-  // Wait for playback to complete (max 60 seconds)
-  let waited=0;
-  while(!playbackDone&&waited<60000){
-    await new Promise(r=>setTimeout(r,100));
-    waited+=100;
-  }
-  
-  stopPlay=originalStopPlay;
-  
-  // Stop recording
-  status.textContent='Processing video...';
-  const videoBlob=await stopRecording();
-  
-  if(!videoBlob){
-    status.textContent='Recording failed';status.style.color='#f44';
-    btn.disabled=false;
+  if(!recordedBlob){
+    status.textContent='No recording found';status.style.color='#f44';
     return;
   }
   
-  // Convert to base64
-  status.textContent='Uploading...';
+  btn.disabled=true;
+  status.textContent='Uploading...';status.style.color='#888';
+  
   const reader=new FileReader();
   reader.onload=async()=>{
     const base64=reader.result.split(',')[1];
@@ -525,6 +499,7 @@ document.getElementById('submitConfirm').addEventListener('click',async()=>{
       status.textContent='✓ Submitted successfully!';
       status.style.color='#4CAF50';
       btn.disabled=false;
+      recordedBlob=null;
       setTimeout(()=>submitModal.classList.remove('active'),1500);
     }catch(err){
       status.textContent='Error: '+err.message;
@@ -532,7 +507,7 @@ document.getElementById('submitConfirm').addEventListener('click',async()=>{
       btn.disabled=false;
     }
   };
-  reader.readAsDataURL(videoBlob);
+  reader.readAsDataURL(recordedBlob);
 });
 
 let touchStartDist=0;let touchStartZoom=1;let touchStartPan={x:0,y:0};let touchMidStart={x:0,y:0};let isTwoFingerGesture=false;
